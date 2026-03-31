@@ -23,6 +23,7 @@ RUN apt-get update \
 
 # Install Python dependencies
 COPY pyproject.toml uv.lock ./
+ENV UV_HTTP_TIMEOUT=300
 RUN uv sync --locked --no-dev
 
 # production stage
