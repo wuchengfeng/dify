@@ -1,4 +1,11 @@
 # Dify 腾讯云部署方案
+## 更新代码
+```bash
+cd /data/dify
+git pull
+cd docker && docker compose up -d --build
+
+```
 
 ## 服务器配置要求
 
