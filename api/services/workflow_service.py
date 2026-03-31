@@ -53,7 +53,13 @@ from models import Account
 from models.human_input import HumanInputFormRecipient, RecipientType
 from models.model import App, AppMode
 from models.tools import WorkflowToolProvider
-from models.workflow import Workflow, WorkflowNodeExecutionModel, WorkflowNodeExecutionTriggeredFrom, WorkflowType
+from models.workflow import (
+    Workflow,
+    WorkflowDraftSnapshot,
+    WorkflowNodeExecutionModel,
+    WorkflowNodeExecutionTriggeredFrom,
+    WorkflowType,
+)
 from repositories.factory import DifyAPIRepositoryFactory
 from services.billing_service import BillingService
 from services.enterprise.plugin_manager_service import PluginCredentialType
@@ -263,6 +269,45 @@ class WorkflowService:
             workflow.updated_at = naive_utc_now()
             workflow.environment_variables = environment_variables
             workflow.conversation_variables = conversation_variables
+
+        # save a snapshot only when LLM node prompt content actually changes
+        def _llm_prompt_fingerprint(g: dict) -> str:
+            """Extract only LLM node prompt-relevant fields for change detection."""
+            nodes = g.get("nodes", [])
+            llm_data = []
+            for node in nodes:
+                data = node.get("data", {})
+                if data.get("type") != "llm":
+                    continue
+                memory = data.get("memory") or {}
+                llm_data.append({
+                    "id": node.get("id"),
+                    "prompt_template": data.get("prompt_template"),
+                    "query_prompt_template": memory.get("query_prompt_template"),
+                })
+            return json.dumps(llm_data, sort_keys=True)
+
+        new_fingerprint = _llm_prompt_fingerprint(graph)
+        last_snapshot = (
+            db.session.execute(
+                select(WorkflowDraftSnapshot)
+                .where(WorkflowDraftSnapshot.app_id == app_model.id)
+                .order_by(WorkflowDraftSnapshot.created_at.desc())
+                .limit(1)
+            )
+            .scalar_one_or_none()
+        )
+        last_fingerprint = (
+            _llm_prompt_fingerprint(json.loads(last_snapshot.graph)) if last_snapshot else None
+        )
+        if last_fingerprint is None or last_fingerprint != new_fingerprint:
+            snapshot = WorkflowDraftSnapshot(
+                tenant_id=app_model.tenant_id,
+                app_id=app_model.id,
+                graph=json.dumps(graph, sort_keys=True),
+                created_by=account.id,
+            )
+            db.session.add(snapshot)
 
         # commit db session changes
         db.session.commit()

@@ -6,6 +6,7 @@ import type appOverview from '../i18n/en-US/app-overview.json'
 import type app from '../i18n/en-US/app.json'
 import type billing from '../i18n/en-US/billing.json'
 import type common from '../i18n/en-US/common.json'
+import type controlPanel from '../i18n/en-US/control-panel.json'
 import type custom from '../i18n/en-US/custom.json'
 import type datasetCreation from '../i18n/en-US/dataset-creation.json'
 import type datasetDocuments from '../i18n/en-US/dataset-documents.json'
@@ -25,6 +26,7 @@ import type plugin from '../i18n/en-US/plugin.json'
 import type register from '../i18n/en-US/register.json'
 import type runLog from '../i18n/en-US/run-log.json'
 import type share from '../i18n/en-US/share.json'
+import type starship from '../i18n/en-US/starship.json'
 import type time from '../i18n/en-US/time.json'
 import type tools from '../i18n/en-US/tools.json'
 import type workflow from '../i18n/en-US/workflow.json'
@@ -39,6 +41,7 @@ export type Resources = {
   appOverview: typeof appOverview
   billing: typeof billing
   common: typeof common
+  controlPanel: typeof controlPanel
   custom: typeof custom
   dataset: typeof dataset
   datasetCreation: typeof datasetCreation
@@ -58,6 +61,7 @@ export type Resources = {
   register: typeof register
   runLog: typeof runLog
   share: typeof share
+  starship: typeof starship
   time: typeof time
   tools: typeof tools
   workflow: typeof workflow
@@ -72,6 +76,7 @@ export const namespaces = [
   'appOverview',
   'billing',
   'common',
+  'controlPanel',
   'custom',
   'dataset',
   'datasetCreation',
@@ -91,6 +96,7 @@ export const namespaces = [
   'register',
   'runLog',
   'share',
+  'starship',
   'time',
   'tools',
   'workflow',

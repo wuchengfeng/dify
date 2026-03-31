@@ -30,6 +30,7 @@ def init_app(app: DifyApp):
     from controllers.inner_api import bp as inner_api_bp
     from controllers.mcp import bp as mcp_bp
     from controllers.service_api import bp as service_api_bp
+    from controllers.starship_public import bp as starship_public_bp
     from controllers.trigger import bp as trigger_bp
     from controllers.web import bp as web_bp
 
@@ -89,6 +90,15 @@ def init_app(app: DifyApp):
 
     app.register_blueprint(inner_api_bp)
     app.register_blueprint(mcp_bp)
+
+    # Starship public square (no auth required)
+    _apply_cors_once(
+        starship_public_bp,
+        allow_headers=["Content-Type"],
+        methods=["GET", "OPTIONS"],
+        expose_headers=list(EXPOSED_HEADERS),
+    )
+    app.register_blueprint(starship_public_bp)
 
     # Register trigger blueprint with CORS for webhook calls
     _apply_cors_once(

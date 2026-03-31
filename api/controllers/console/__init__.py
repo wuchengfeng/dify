@@ -35,6 +35,7 @@ for module_name in RESOURCE_MODULES:
 from . import (
     admin,
     apikey,
+    control_panel,
     extension,
     feature,
     human_input_form,
@@ -43,6 +44,7 @@ from . import (
     ping,
     setup,
     spec,
+    starship,
     version,
 )
 
@@ -155,6 +157,7 @@ __all__ = [
     "completion",
     "compliance",
     "console_ns",
+    "control_panel",
     "conversation",
     "conversation_variables",
     "data_source",
@@ -202,6 +205,7 @@ __all__ = [
     "setup",
     "site",
     "spec",
+    "starship",
     "statistic",
     "tags",
     "tool_providers",

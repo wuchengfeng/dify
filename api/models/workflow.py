@@ -1884,3 +1884,19 @@ class WorkflowPauseReason(DefaultFieldsMixin, Base):
             return SchedulingPause(message=self.message)
         else:
             raise AssertionError(f"Unknown pause reason type: {self.type_}")
+
+
+class WorkflowDraftSnapshot(Base):
+    """Snapshot of a workflow draft, saved each time the draft is synced.
+    Enables admin control panel to show prompt modification history.
+    """
+
+    __tablename__ = "workflow_draft_snapshots"
+    __table_args__ = (Index("wds_app_created_idx", "app_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(StringUUID, primary_key=True, default=lambda: str(uuid4()))
+    tenant_id: Mapped[str] = mapped_column(StringUUID, nullable=False)
+    app_id: Mapped[str] = mapped_column(StringUUID, nullable=False)
+    graph: Mapped[str] = mapped_column(LongText, nullable=False)
+    created_by: Mapped[str] = mapped_column(StringUUID, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=naive_utc_now)

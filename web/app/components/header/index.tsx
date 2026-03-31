@@ -13,12 +13,14 @@ import useBreakpoints, { MediaType } from '@/hooks/use-breakpoints'
 import { Plan } from '../billing/type'
 import AccountDropdown from './account-dropdown'
 import AppNav from './app-nav'
+import ControlPanelNav from './control-panel-nav'
 import DatasetNav from './dataset-nav'
 import EnvNav from './env-nav'
 import ExploreNav from './explore-nav'
 import LicenseNav from './license-env'
 import PlanBadge from './plan-badge'
 import PluginsNav from './plugins-nav'
+import StarshipNav from './starship-nav'
 import ToolsNav from './tools-nav'
 
 const navClassName = `
@@ -28,7 +30,7 @@ const navClassName = `
 `
 
 const Header = () => {
-  const { isCurrentWorkspaceEditor, isCurrentWorkspaceDatasetOperator } = useAppContext()
+  const { isCurrentWorkspaceEditor, isCurrentWorkspaceDatasetOperator, isCurrentWorkspaceOwner, isCurrentWorkspaceManager } = useAppContext()
   const media = useBreakpoints()
   const isMobile = media === MediaType.mobile
   const { enableBilling, plan } = useProviderContext()
@@ -84,6 +86,8 @@ const Header = () => {
           {!isCurrentWorkspaceDatasetOperator && <AppNav />}
           {(isCurrentWorkspaceEditor || isCurrentWorkspaceDatasetOperator) && <DatasetNav />}
           {!isCurrentWorkspaceDatasetOperator && <ToolsNav className={navClassName} />}
+          {(isCurrentWorkspaceOwner || isCurrentWorkspaceManager) && <ControlPanelNav className={navClassName} />}
+          <StarshipNav className={navClassName} />
         </div>
       </div>
     )
@@ -91,7 +95,7 @@ const Header = () => {
 
   return (
     <div className="flex h-[56px] items-center">
-      <div className="flex min-w-0 flex-[1]  items-center pl-3 pr-2 min-[1280px]:pr-3">
+      <div className="flex min-w-0 flex-[1] items-center pl-3 pr-2 min-[1280px]:pr-3">
         {renderLogo()}
         <div className="mx-1.5 shrink-0 font-light text-divider-deep">/</div>
         <WorkspaceProvider>
@@ -104,6 +108,8 @@ const Header = () => {
         {!isCurrentWorkspaceDatasetOperator && <AppNav />}
         {(isCurrentWorkspaceEditor || isCurrentWorkspaceDatasetOperator) && <DatasetNav />}
         {!isCurrentWorkspaceDatasetOperator && <ToolsNav className={navClassName} />}
+        {(isCurrentWorkspaceOwner || isCurrentWorkspaceManager) && <ControlPanelNav className={navClassName} />}
+        <StarshipNav className={navClassName} />
       </div>
       <div className="flex min-w-0 flex-[1] items-center justify-end pl-2 pr-3 min-[1280px]:pl-3">
         <EnvNav />
