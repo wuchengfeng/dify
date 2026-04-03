@@ -1,3 +1,5 @@
+import { AG_API_BASE } from '@/config'
+
 type Timestamp = number
 
 export type StarshipRole = 'coach' | 'student'
@@ -186,6 +188,16 @@ type MockDb = {
 const MOCK_ROLE_STORAGE_KEY = 'starship-mock-role'
 const APPRECIATION_STORAGE_KEY = 'starship-public-appreciation'
 const ROOT_KEY = '__STARSHIP_MOCK_DB__'
+const ROOT_MODE_KEY = '__STARSHIP_DB_MODE__'
+const ROOT_BRIDGE_TOKEN_KEY = '__STARSHIP_BRIDGE_TOKEN__'
+const BRIDGE_TOKEN_QUERY_KEY = 'bridge_token'
+const BRIDGE_TOKEN_STORAGE_KEY = 'ag-starship-bridge-token'
+
+type StarshipApiResponse<T> = {
+  success: boolean
+  data?: T
+  message?: string
+}
 
 const now = (value: string): Timestamp => Math.floor(new Date(value).getTime() / 1000)
 
@@ -805,14 +817,93 @@ const createInitialDb = (): MockDb => {
 
 const getRoot = (): typeof globalThis & Record<string, unknown> => globalThis as typeof globalThis & Record<string, unknown>
 
+const storeBridgeToken = (value: string) => {
+  if (typeof window === 'undefined' || !value)
+    return
+
+  window.localStorage.setItem(BRIDGE_TOKEN_STORAGE_KEY, value)
+}
+
+const sanitizeBridgeTokenFromUrl = (token: string) => {
+  if (typeof window === 'undefined' || !token)
+    return
+
+  const url = new URL(window.location.href)
+  if (!url.searchParams.has(BRIDGE_TOKEN_QUERY_KEY))
+    return
+
+  url.searchParams.delete(BRIDGE_TOKEN_QUERY_KEY)
+  window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`)
+}
+
+const readBridgeToken = () => {
+  if (typeof window === 'undefined')
+    return ''
+
+  const url = new URL(window.location.href)
+  const queryToken = url.searchParams.get(BRIDGE_TOKEN_QUERY_KEY) || ''
+  if (queryToken) {
+    storeBridgeToken(queryToken)
+    sanitizeBridgeTokenFromUrl(queryToken)
+    return queryToken
+  }
+
+  return window.localStorage.getItem(BRIDGE_TOKEN_STORAGE_KEY) || ''
+}
+
+export const isStarshipBridgeMode = () => Boolean(readBridgeToken())
+
+const bridgeBootstrapPath = (bridgeToken: string) =>
+  `${AG_API_BASE.replace(/\/$/, '')}/ag/starship/bootstrap?bridge_token=${encodeURIComponent(bridgeToken)}`
+
+const fetchBridgeBootstrap = async (bridgeToken: string): Promise<MockDb> => {
+  const response = await fetch(bridgeBootstrapPath(bridgeToken), {
+    credentials: 'include',
+  })
+  const payload = await response.json().catch(() => ({})) as StarshipApiResponse<MockDb>
+  if (!response.ok || !payload.success || !payload.data)
+    throw new Error(payload.message || '无法载入 AG 星舰空间')
+  return payload.data
+}
+
+const setLoadedDb = (db: MockDb, mode: 'mock' | 'bridge', bridgeToken = '') => {
+  const root = getRoot()
+  root[ROOT_KEY] = db
+  root[ROOT_MODE_KEY] = mode
+  root[ROOT_BRIDGE_TOKEN_KEY] = bridgeToken
+}
+
+const ensureDbReady = async (): Promise<MockDb> => {
+  const root = getRoot()
+  const bridgeToken = readBridgeToken()
+
+  if (bridgeToken) {
+    if (
+      root[ROOT_MODE_KEY] === 'bridge'
+      && root[ROOT_BRIDGE_TOKEN_KEY] === bridgeToken
+      && root[ROOT_KEY]
+    )
+      return root[ROOT_KEY] as MockDb
+
+    const bridgeDb = await fetchBridgeBootstrap(bridgeToken)
+    setLoadedDb(bridgeDb, 'bridge', bridgeToken)
+    return bridgeDb
+  }
+
+  if (!root[ROOT_KEY] || root[ROOT_MODE_KEY] !== 'mock')
+    setLoadedDb(createInitialDb(), 'mock')
+
+  return root[ROOT_KEY] as MockDb
+}
+
 const getDb = (): MockDb => {
   const root = getRoot()
   if (!root[ROOT_KEY])
-    root[ROOT_KEY] = createInitialDb()
+    setLoadedDb(createInitialDb(), 'mock')
 
   const db = root[ROOT_KEY] as MockDb
 
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && root[ROOT_MODE_KEY] === 'mock') {
     const storedRole = window.localStorage.getItem(MOCK_ROLE_STORAGE_KEY)
     if (storedRole === 'coach' || storedRole === 'student')
       db.session_role = storedRole
@@ -914,9 +1005,13 @@ const createDraftSnapshot = (appId: string) => {
 // ---- Demo session ----
 
 export const fetchStarshipSession = async (): Promise<StarshipSession> =>
-  withDelay(currentSession())
+  withDelay((await ensureDbReady(), currentSession()))
 
 export const setStarshipMockRole = async (role: StarshipRole): Promise<{ role: StarshipRole }> => {
+  await ensureDbReady()
+  if (isStarshipBridgeMode())
+    return withDelay({ role: currentSession().role }, 50)
+
   const db = getDb()
   db.session_role = role
   if (typeof window !== 'undefined')
@@ -927,7 +1022,7 @@ export const setStarshipMockRole = async (role: StarshipRole): Promise<{ role: S
 // ---- Member APIs ----
 
 export const fetchStarshipMembers = async (): Promise<{ items: StarshipMember[] }> =>
-  withDelay({
+  withDelay((await ensureDbReady(), {
     items: [
       {
         id: 'member-coach-lin',
@@ -944,14 +1039,15 @@ export const fetchStarshipMembers = async (): Promise<{ items: StarshipMember[] 
         role: 'student',
       },
     ],
-  })
+  }))
 
 export const assignStarshipMember = async (_account_id: string, _role: StarshipRole) =>
-  withDelay({ result: 'ok' })
+  withDelay((await ensureDbReady(), { result: 'ok' }))
 
 // ---- Student APIs ----
 
 export const fetchStudentDashboard = async (): Promise<StudentDashboard> => {
+  await ensureDbReady()
   const db = getDb()
   const session = currentSession()
   const studentAgents = db.agents
@@ -994,6 +1090,7 @@ export const fetchStudentDashboard = async (): Promise<StudentDashboard> => {
 // ---- Agent APIs ----
 
 export const fetchMyAgents = async (): Promise<{ items: StarshipAgent[] }> => {
+  await ensureDbReady()
   const session = currentSession()
   return withDelay({
     items: getDb().agents.filter(agent => agent.owner_id === session.user_id).sort((a, b) => (b.updated_at || b.created_at) - (a.updated_at || a.created_at)).map(toPublicAgent),
@@ -1008,6 +1105,7 @@ export const createStarshipAgent = async (data: {
   pre_prompt: string
   group_id?: string
 }): Promise<{ id: string, name: string }> => {
+  await ensureDbReady()
   const db = getDb()
   const session = currentSession()
   const fallbackGroupId = session.role === 'coach'
@@ -1059,11 +1157,12 @@ export const createStarshipAgent = async (data: {
 }
 
 export const fetchAgentVersions = async (appId: string): Promise<{ items: AgentVersion[] }> =>
-  withDelay({
+  withDelay((await ensureDbReady(), {
     items: getDb().versions.filter(version => version.app_id === appId).sort((a, b) => b.version_number - a.version_number),
-  })
+  }))
 
 export const submitAgentVersion = async (appId: string): Promise<{ id: string, version_number: number }> => {
+  await ensureDbReady()
   const db = getDb()
   const agent = findAgent(appId)
   const session = currentSession()
@@ -1089,6 +1188,7 @@ export const submitAgentVersion = async (appId: string): Promise<{ id: string, v
 // ---- Coach APIs ----
 
 export const fetchPendingVersions = async (): Promise<{ items: PendingVersion[] }> => {
+  await ensureDbReady()
   const db = getDb()
   const session = currentSession()
   const visibleGroupIds = new Set(
@@ -1122,6 +1222,7 @@ export const fetchPendingVersions = async (): Promise<{ items: PendingVersion[] 
 }
 
 export const reviewVersion = async (versionId: string, action: 'approve' | 'reject', comment = '') => {
+  await ensureDbReady()
   const db = getDb()
   const version = db.versions.find(item => item.id === versionId)
   if (!version)
@@ -1140,6 +1241,7 @@ export const fetchSquare = async (params: {
   limit?: number
   search?: string
 }): Promise<{ items: StarshipAgent[], total: number, page: number, limit: number }> => {
+  await ensureDbReady()
   const search = params.search?.trim().toLowerCase() || ''
   const limit = params.limit || 20
   const page = params.page || 1
@@ -1180,7 +1282,7 @@ const fetchMyGroupsSync = (): { items: StarshipGroup[] } => {
 }
 
 export const fetchMyGroups = async (): Promise<{ items: StarshipGroup[] }> =>
-  withDelay({
+  withDelay((await ensureDbReady(), {
     items: fetchMyGroupsSync().items.sort((a, b) => {
       const statusWeight = (value?: 'active' | 'history') => value === 'active' ? 1 : 0
       const statusDiff = statusWeight(b.status) - statusWeight(a.status)
@@ -1188,9 +1290,10 @@ export const fetchMyGroups = async (): Promise<{ items: StarshipGroup[] }> =>
         return statusDiff
       return (b.updated_at || b.created_at) - (a.updated_at || a.created_at)
     }),
-  })
+  }))
 
 export const createGroup = async (data: { name: string, description: string, member_ids: string[] }) => {
+  await ensureDbReady()
   const group: StarshipGroup = {
     id: makeId('group'),
     name: data.name,
@@ -1202,9 +1305,9 @@ export const createGroup = async (data: { name: string, description: string, mem
 }
 
 export const fetchGroupAgents = async (groupId: string): Promise<{ items: StarshipAgent[] }> =>
-  withDelay({
+  withDelay((await ensureDbReady(), {
     items: getDb().agents.filter(agent => agent.group_id === groupId).sort((a, b) => (b.updated_at || b.created_at) - (a.updated_at || a.created_at)).map(toPublicAgent),
-  })
+  }))
 
 const duplicateAgent = (source: InternalAgent, role: StarshipRole, ownerId: string, ownerName: string, groupId?: string | null) => {
   const nextGroupId = groupId ?? source.group_id ?? null
@@ -1252,6 +1355,7 @@ const duplicateAgent = (source: InternalAgent, role: StarshipRole, ownerId: stri
 }
 
 export const forkGroupAgent = async (groupId: string, appId: string): Promise<{ id: string, name: string }> => {
+  await ensureDbReady()
   const source = findAgent(appId)
   const session = currentSession()
   const copied = duplicateAgent(source, session.role, session.user_id, session.user_name, groupId)
@@ -1261,6 +1365,7 @@ export const forkGroupAgent = async (groupId: string, appId: string): Promise<{ 
 // ---- Fork personal agent (from square) ----
 
 export const forkAgent = async (appId: string): Promise<{ id: string, name: string }> => {
+  await ensureDbReady()
   const source = findAgent(appId)
   const session = currentSession()
   const copied = duplicateAgent(source, session.role, session.user_id, session.user_name)
@@ -1270,6 +1375,7 @@ export const forkAgent = async (appId: string): Promise<{ id: string, name: stri
 // ---- Workspace ----
 
 export const fetchStarshipWorkspace = async (appId: string): Promise<StarshipWorkspace> => {
+  await ensureDbReady()
   const agent = findAgent(appId)
   const session = currentSession()
   const task = findTaskForGroup(agent.group_id)
@@ -1315,6 +1421,7 @@ export const saveStarshipWorkspace = async (appId: string, payload: {
   tool_settings?: WorkspaceToolSettings
   knowledge_items?: KnowledgeItem[]
 }) => {
+  await ensureDbReady()
   const agent = findAgent(appId)
   agent.name = payload.name
   agent.description = payload.description
@@ -1348,6 +1455,7 @@ export const runStarshipWorkspaceTest = async (
     persist_snapshot?: boolean
   },
 ): Promise<{ output: string, snapshot_created: boolean }> => {
+  await ensureDbReady()
   const agent = findAgent(appId)
   const db = getDb()
   if (payload.draft) {
@@ -1380,6 +1488,7 @@ export const publishStarshipWorkspace = async (appId: string, payload: {
   share_intro: string
   opening_line?: string
 }) => {
+  await ensureDbReady()
   const agent = findAgent(appId)
   const canShare = agent.owner_role === 'coach' || agent.project_kind === 'publish' || agent.project_kind === 'history'
 
@@ -1398,6 +1507,7 @@ export const publishStarshipWorkspace = async (appId: string, payload: {
 }
 
 export const fetchPublicStarshipAgent = async (appId: string): Promise<PublicStarshipAgent> => {
+  await ensureDbReady()
   const agent = findAgent(appId)
   if (!agent.is_public)
     throw new Error('Public agent not found in mock data')
@@ -1406,6 +1516,7 @@ export const fetchPublicStarshipAgent = async (appId: string): Promise<PublicSta
 }
 
 export const runStarshipExperience = async (appId: string, input: string): Promise<{ output: string }> => {
+  await ensureDbReady()
   const agent = findAgent(appId)
   const promptTone = agent.pre_prompt.split('。')[0] || agent.name
 
@@ -1415,6 +1526,7 @@ export const runStarshipExperience = async (appId: string, input: string): Promi
 }
 
 export const fetchPreviewStarshipAgent = async (appId: string): Promise<PublicStarshipAgent> => {
+  await ensureDbReady()
   const agent = findAgent(appId)
   const canPreview = agent.owner_role === 'coach' || agent.project_kind === 'publish' || agent.project_kind === 'history'
   if (!canPreview)
@@ -1424,6 +1536,7 @@ export const fetchPreviewStarshipAgent = async (appId: string): Promise<PublicSt
 }
 
 export const toggleStarshipAppreciation = async (appId: string): Promise<{ applause_count: number, applauded_by_current_device: boolean }> => {
+  await ensureDbReady()
   const db = getDb()
   const appreciationSet = getAppreciationSet()
   const current = db.appreciation[appId] || 0

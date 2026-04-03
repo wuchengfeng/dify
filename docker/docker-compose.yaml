@@ -5,6 +5,17 @@
 # ==================================================================
 
 x-shared-env: &shared-api-worker-env
+  AG_MARS_DB_HOST: ${AG_MARS_DB_HOST:-}
+  AG_MARS_DB_PORT: ${AG_MARS_DB_PORT:-63623}
+  AG_MARS_DB_USER: ${AG_MARS_DB_USER:-}
+  AG_MARS_DB_PASS: ${AG_MARS_DB_PASS:-}
+  AG_MARS_DB_NAME: ${AG_MARS_DB_NAME:-}
+  AG_MARS_DB_CHARSET: ${AG_MARS_DB_CHARSET:-utf8mb4}
+  AG_AUTH_SECRET: ${AG_AUTH_SECRET:-}
+  AG_MODEL_PROVIDER: ${AG_MODEL_PROVIDER:-doubao}
+  AG_MODEL_API_KEY: ${AG_MODEL_API_KEY:-}
+  AG_MODEL_ID: ${AG_MODEL_ID:-}
+  AG_API_BASE: ${AG_API_BASE:-http://localhost:3000/api}
   CONSOLE_API_URL: ${CONSOLE_API_URL:-}
   CONSOLE_WEB_URL: ${CONSOLE_WEB_URL:-}
   SERVICE_API_URL: ${SERVICE_API_URL:-}
@@ -841,6 +852,7 @@ services:
     environment:
       CONSOLE_API_URL: ${CONSOLE_API_URL:-}
       APP_API_URL: ${APP_API_URL:-}
+      AG_API_BASE: ${AG_API_BASE:-http://localhost:3000/api}
       AMPLITUDE_API_KEY: ${AMPLITUDE_API_KEY:-}
       NEXT_PUBLIC_COOKIE_DOMAIN: ${NEXT_PUBLIC_COOKIE_DOMAIN:-}
       SENTRY_DSN: ${WEB_SENTRY_DSN:-}

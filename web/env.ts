@@ -28,6 +28,10 @@ const clientSchema = {
    */
   NEXT_PUBLIC_AMPLITUDE_API_KEY: z.string().optional(),
   /**
+   * The AG backend API base for starship bridge.
+   */
+  NEXT_PUBLIC_AG_API_BASE: z.string().optional(),
+  /**
    * The base URL of console application, refers to the Console base URL of WEB service if console domain is
    * different from api or web app domain.
    * example: http://cloud.dify.ai/console/api
@@ -159,6 +163,7 @@ export const env = createEnv({
     NEXT_PUBLIC_ALLOW_EMBED: isServer ? process.env.NEXT_PUBLIC_ALLOW_EMBED : getRuntimeEnvFromBody('allowEmbed'),
     NEXT_PUBLIC_ALLOW_UNSAFE_DATA_SCHEME: isServer ? process.env.NEXT_PUBLIC_ALLOW_UNSAFE_DATA_SCHEME : getRuntimeEnvFromBody('allowUnsafeDataScheme'),
     NEXT_PUBLIC_AMPLITUDE_API_KEY: isServer ? process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY : getRuntimeEnvFromBody('amplitudeApiKey'),
+    NEXT_PUBLIC_AG_API_BASE: isServer ? process.env.NEXT_PUBLIC_AG_API_BASE : getRuntimeEnvFromBody('agApiBase'),
     NEXT_PUBLIC_API_PREFIX: isServer ? process.env.NEXT_PUBLIC_API_PREFIX : getRuntimeEnvFromBody('apiPrefix'),
     NEXT_PUBLIC_BASE_PATH: isServer ? process.env.NEXT_PUBLIC_BASE_PATH : getRuntimeEnvFromBody('basePath'),
     NEXT_PUBLIC_BATCH_CONCURRENCY: isServer ? process.env.NEXT_PUBLIC_BATCH_CONCURRENCY : getRuntimeEnvFromBody('batchConcurrency'),

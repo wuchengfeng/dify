@@ -4,16 +4,22 @@ import type { StarshipRole } from '@/service/starship'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { fetchStarshipSession, setStarshipMockRole } from '@/service/starship'
+import { fetchStarshipSession, isStarshipBridgeMode, setStarshipMockRole } from '@/service/starship'
 
 const MockRoleSwitcher = () => {
   const { t } = useTranslation('starship')
   const router = useRouter()
   const [role, setRole] = useState<StarshipRole>('student')
+  const bridgeMode = isStarshipBridgeMode()
 
   useEffect(() => {
+    if (bridgeMode)
+      return
     fetchStarshipSession().then(session => setRole(session.role))
-  }, [])
+  }, [bridgeMode])
+
+  if (bridgeMode)
+    return null
 
   const handleSwitch = async (nextRole: StarshipRole) => {
     setRole(nextRole)

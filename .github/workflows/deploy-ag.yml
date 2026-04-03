@@ -1,0 +1,24 @@
+name: Deploy AG Starship
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'api/**'
+      - 'docker/**'
+      - 'web/**'
+      - '.github/workflows/deploy-ag.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: |
+            chmod +x /data/dify/docker/deploy-ag.sh
+            /data/dify/docker/deploy-ag.sh

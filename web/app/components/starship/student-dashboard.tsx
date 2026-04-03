@@ -65,19 +65,31 @@ const StudentDashboardPage = () => {
   const { t } = useTranslation(['starship', 'common'])
   const [dashboard, setDashboard] = useState<StudentDashboard | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     setStarshipMockRole('student')
       .then(() => fetchStudentDashboard())
       .then(setDashboard)
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : t('student.currentProjectsEmpty'))
+      })
       .finally(() => setLoading(false))
-  }, [])
+  }, [t])
 
-  if (loading || !dashboard) {
+  if (loading) {
     return (
       <div className="flex h-56 items-center justify-center text-sm text-slate-400">
         {t('loading', { ns: 'common' })}
         ...
+      </div>
+    )
+  }
+
+  if (!dashboard) {
+    return (
+      <div className="flex h-56 items-center justify-center text-sm text-slate-400">
+        {error || t('student.currentProjectsEmpty')}
       </div>
     )
   }

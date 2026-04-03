@@ -61,6 +61,7 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
   const { t } = useTranslation(['starship', 'common'])
   const [workspace, setWorkspace] = useState<StarshipWorkspace | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [testing, setTesting] = useState(false)
   const [savingCoachDraft, setSavingCoachDraft] = useState(false)
   const [feedback, setFeedback] = useState('')
@@ -130,10 +131,14 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
       })
       setKnowledgeItems(result.knowledge_items)
     }
+    catch (err) {
+      setError(err instanceof Error ? err.message : t('workspace.noTaskDescription'))
+      setWorkspace(null)
+    }
     finally {
       setLoading(false)
     }
-  }, [appId])
+  }, [appId, t])
 
   useEffect(() => {
     void load()
@@ -236,11 +241,19 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
     startListening()
   }
 
-  if (loading || !workspace) {
+  if (loading) {
     return (
       <div className="flex h-56 items-center justify-center text-sm text-slate-400">
         {t('loading', { ns: 'common' })}
         ...
+      </div>
+    )
+  }
+
+  if (!workspace) {
+    return (
+      <div className="flex h-56 items-center justify-center text-sm text-slate-400">
+        {error || t('workspace.noTaskDescription')}
       </div>
     )
   }
