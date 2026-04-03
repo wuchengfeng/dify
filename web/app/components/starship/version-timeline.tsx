@@ -3,7 +3,7 @@
 import type { AgentVersion } from '@/service/starship'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { fetchAgentVersions, submitAgentVersion } from '@/service/starship'
+import { fetchAgentVersions } from '@/service/starship'
 
 type Props = {
   appId: string
@@ -17,11 +17,9 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 const VersionTimeline = ({ appId }: Props) => {
-  const { t } = useTranslation('starship')
+  const { t } = useTranslation(['starship', 'common'])
   const [versions, setVersions] = useState<AgentVersion[]>([])
   const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [msg, setMsg] = useState('')
 
   const load = () => {
     fetchAgentVersions(appId)
@@ -35,38 +33,20 @@ const VersionTimeline = ({ appId }: Props) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appId])
 
-  const handleSubmit = async () => {
-    setSubmitting(true)
-    try {
-      await submitAgentVersion(appId)
-      setMsg(t('myAgents.submitSuccess'))
-      load()
-      setTimeout(() => setMsg(''), 4000)
-    }
-    finally {
-      setSubmitting(false)
-    }
+  if (loading) {
+    return (
+      <div className="flex h-32 items-center justify-center text-sm text-text-tertiary">
+        {t('loading', { ns: 'common' })}
+        ...
+      </div>
+    )
   }
-
-  if (loading)
-    return <div className="flex h-32 items-center justify-center text-sm text-text-tertiary">Loading...</div>
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h3 className="font-semibold text-text-primary">{t('versions.title')}</h3>
-        <button
-          onClick={handleSubmit}
-          disabled={submitting}
-          className="rounded-xl bg-primary-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
-        >
-          {submitting ? '...' : t('versions.submit')}
-        </button>
       </div>
-
-      {msg && (
-        <div className="mb-3 rounded-xl bg-green-50 px-4 py-2 text-sm text-green-700">{msg}</div>
-      )}
 
       {!versions.length
         ? <div className="flex h-32 items-center justify-center text-sm text-text-tertiary">{t('versions.noData')}</div>

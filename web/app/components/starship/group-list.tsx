@@ -7,7 +7,7 @@ import { fetchGroupAgents, fetchMyGroups, forkGroupAgent } from '@/service/stars
 import AgentCard from './agent-card'
 
 const GroupList = () => {
-  const { t } = useTranslation('starship')
+  const { t } = useTranslation(['starship', 'common'])
   const [groups, setGroups] = useState<StarshipGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -38,8 +38,14 @@ const GroupList = () => {
     setTimeout(() => setForkMsg(''), 3000)
   }
 
-  if (loading)
-    return <div className="flex h-32 items-center justify-center text-sm text-text-tertiary">Loading...</div>
+  if (loading) {
+    return (
+      <div className="flex h-32 items-center justify-center text-sm text-text-tertiary">
+        {t('loading', { ns: 'common' })}
+        ...
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -77,7 +83,12 @@ const GroupList = () => {
                   {expanded === group.id && (
                     <div className="border-t border-divider-subtle p-4">
                       {!groupAgents[group.id]
-                        ? <div className="text-sm text-text-tertiary">Loading...</div>
+                        ? (
+                            <div className="text-sm text-text-tertiary">
+                              {t('loading', { ns: 'common' })}
+                              ...
+                            </div>
+                          )
                         : !groupAgents[group.id].length
                             ? <div className="text-sm text-text-tertiary">{t('myAgents.noData')}</div>
                             : (

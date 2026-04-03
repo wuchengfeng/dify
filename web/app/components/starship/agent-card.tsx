@@ -33,21 +33,18 @@ const AgentCard = ({ agent, showActions = false, onFork, isSquare = false }: Pro
 
       {agent.creator_name && (
         <div className="mt-2 text-[11px] text-text-quaternary">
-          by
-          {agent.creator_name}
+          {t('agent.byAuthor', { author: agent.creator_name })}
         </div>
       )}
 
       <div className="mt-3 flex gap-2">
         {isSquare && agent.site_code && (
-          <a
-            href={`/chat/${agent.site_code}`}
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            href={`/starship/share/${agent.id}`}
             className="flex-1 rounded-lg bg-primary-600 px-3 py-1.5 text-center text-xs font-medium text-white hover:bg-primary-700"
           >
-            {t('square.chat')}
-          </a>
+            {t('square.view')}
+          </Link>
         )}
         {isSquare && onFork && (
           <button
@@ -60,13 +57,13 @@ const AgentCard = ({ agent, showActions = false, onFork, isSquare = false }: Pro
         {showActions && (
           <>
             <Link
-              href={`/app/${agent.id}/configuration`}
+              href={`/starship/workspace/${agent.id}`}
               className="flex-1 rounded-lg border border-divider-regular px-3 py-1.5 text-center text-xs font-medium text-text-secondary hover:bg-background-default-hover"
             >
               {t('myAgents.edit')}
             </Link>
             <Link
-              href={`/starship/${agent.id}/versions`}
+              href={`/starship/versions/${agent.id}`}
               className="flex-1 rounded-lg border border-divider-regular px-3 py-1.5 text-center text-xs font-medium text-text-secondary hover:bg-background-default-hover"
             >
               {t('myAgents.versions')}

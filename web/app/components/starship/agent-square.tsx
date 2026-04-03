@@ -3,14 +3,11 @@
 import type { StarshipAgent } from '@/service/starship'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAppContext } from '@/context/app-context'
 import { fetchSquare, forkAgent } from '@/service/starship'
 import AgentCard from './agent-card'
 
 const AgentSquare = () => {
-  const { t } = useTranslation('starship')
-  const { userProfile } = useAppContext()
-  const isLoggedIn = !!userProfile?.id
+  const { t } = useTranslation(['starship', 'common'])
   const [agents, setAgents] = useState<StarshipAgent[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -33,10 +30,6 @@ const AgentSquare = () => {
   }
 
   const handleFork = async (agent: StarshipAgent) => {
-    if (!isLoggedIn) {
-      setForkMsg(t('square.loginToFork'))
-      return
-    }
     await forkAgent(agent.id)
     setForkMsg(t('square.forkSuccess'))
     setTimeout(() => setForkMsg(''), 3000)
@@ -52,7 +45,7 @@ const AgentSquare = () => {
           className="flex-1 rounded-xl border border-divider-regular bg-background-default px-4 py-2 text-sm outline-none focus:border-primary-400"
         />
         <button type="submit" className="rounded-xl bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
-          Search
+          {t('square.searchAction')}
         </button>
       </form>
 
@@ -61,7 +54,12 @@ const AgentSquare = () => {
       )}
 
       {loading
-        ? <div className="flex h-40 items-center justify-center text-sm text-text-tertiary">Loading...</div>
+        ? (
+            <div className="flex h-40 items-center justify-center text-sm text-text-tertiary">
+              {t('loading', { ns: 'common' })}
+              ...
+            </div>
+          )
         : !agents.length
             ? <div className="flex h-40 items-center justify-center text-sm text-text-tertiary">{t('square.noData')}</div>
             : (
@@ -71,7 +69,7 @@ const AgentSquare = () => {
                       key={agent.id}
                       agent={agent}
                       isSquare
-                      onFork={isLoggedIn ? handleFork : undefined}
+                      onFork={handleFork}
                     />
                   ))}
                 </div>
