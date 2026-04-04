@@ -44,6 +44,27 @@ cd /data/dify/docker
 ./deploy-ag.sh
 ```
 
+## 常用排查命令
+
+发布完成后，`/data/dify` 最外层会恢复成 CTO 熟悉的老用法，可以直接输入 `docker compose ...`。
+
+推荐直接用：
+
+```bash
+cd /data/dify
+docker compose ps
+docker compose logs --tail=80 web
+docker compose logs --tail=80 api
+docker compose restart web
+```
+
+如果你想在原来的 `docker` 子目录里操作，也可以：
+
+```bash
+cd /data/dify/docker
+docker compose -p dify -f docker-compose.yaml logs --tail=80 web
+```
+
 ## 主站后端需要同步配置
 
 `marsedu` 服务器环境里需要补：

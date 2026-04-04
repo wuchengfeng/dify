@@ -16,6 +16,11 @@ if [[ ! -f ".env" ]]; then
   cp .env.example .env
 fi
 
+echo "Restoring classic root Docker entrypoints..."
+ln -sfn docker/docker-compose.yaml "$REPO_DIR/docker-compose.yaml"
+ln -sfn docker/.env "$REPO_DIR/.env"
+ln -sfn docker/.env.example "$REPO_DIR/.env.example"
+
 echo "Syncing environment template..."
 chmod +x dify-env-sync.sh
 ./dify-env-sync.sh

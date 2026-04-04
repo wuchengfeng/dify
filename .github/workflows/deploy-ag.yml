@@ -20,5 +20,6 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
           script: |
+            git -C /data/dify pull origin main
             chmod +x /data/dify/docker/deploy-ag.sh
             /data/dify/docker/deploy-ag.sh
