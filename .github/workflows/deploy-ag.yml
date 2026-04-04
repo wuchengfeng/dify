@@ -8,17 +8,39 @@ on:
       - 'docker/**'
       - 'web/**'
       - '.github/workflows/deploy-ag.yml'
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      DEPLOY_HOST: ${{ secrets.HOST || secrets.SERVER_HOST || secrets.SSH_HOST || vars.HOST || vars.SERVER_HOST || vars.SSH_HOST }}
+      DEPLOY_PORT: ${{ secrets.PORT || secrets.SERVER_PORT || secrets.SSH_PORT || vars.PORT || vars.SERVER_PORT || vars.SSH_PORT || '22' }}
+      DEPLOY_USERNAME: ${{ secrets.USERNAME || secrets.SERVER_USERNAME || secrets.SSH_USERNAME || vars.USERNAME || vars.SERVER_USERNAME || vars.SSH_USERNAME }}
+      DEPLOY_KEY: ${{ secrets.KEY || secrets.SSH_KEY || secrets.PRIVATE_KEY || vars.KEY || vars.SSH_KEY || vars.PRIVATE_KEY }}
     steps:
+      - name: Validate deploy secrets
+        run: |
+          if [ -z "$DEPLOY_HOST" ]; then
+            echo "::error::Missing deploy host secret. Supported names: HOST / SERVER_HOST / SSH_HOST"
+            exit 1
+          fi
+          if [ -z "$DEPLOY_USERNAME" ]; then
+            echo "::error::Missing deploy username secret. Supported names: USERNAME / SERVER_USERNAME / SSH_USERNAME"
+            exit 1
+          fi
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::error::Missing deploy key secret. Supported names: KEY / SSH_KEY / PRIVATE_KEY"
+            exit 1
+          fi
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.KEY }}
+          host: ${{ env.DEPLOY_HOST }}
+          port: ${{ env.DEPLOY_PORT }}
+          username: ${{ env.DEPLOY_USERNAME }}
+          key: ${{ env.DEPLOY_KEY }}
           script: |
             git -C /data/dify pull origin main
             chmod +x /data/dify/docker/deploy-ag.sh
