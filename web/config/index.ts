@@ -43,7 +43,7 @@ export const AMPLITUDE_API_KEY = getStringConfig(
 )
 export const AG_API_BASE = getStringConfig(
   env.NEXT_PUBLIC_AG_API_BASE,
-  'http://localhost:3000/api',
+  PUBLIC_API_PREFIX || 'http://localhost:3000/api',
 )
 
 export const IS_DEV = process.env.NODE_ENV === 'development'
