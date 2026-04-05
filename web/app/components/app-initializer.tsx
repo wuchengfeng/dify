@@ -11,6 +11,7 @@ import {
 } from '@/app/education-apply/constants'
 import { sendGAEvent } from '@/utils/gtag'
 import { fetchSetupStatusWithCache } from '@/utils/setup-status'
+import { isStarshipBridgeRequest } from '@/utils/starship-bridge'
 import { resolvePostLoginRedirect } from '../signin/utils/post-login-redirect'
 import { trackEvent } from './base/amplitude'
 
@@ -44,6 +45,7 @@ export const AppInitializer = ({
   useEffect(() => {
     (async () => {
       const action = searchParams.get('action')
+      const isBridgeMode = isStarshipBridgeRequest(pathname)
 
       if (oauthNewUser) {
         let utmInfo = null
@@ -76,6 +78,11 @@ export const AppInitializer = ({
 
       if (action === EDUCATION_VERIFY_URL_SEARCHPARAMS_ACTION)
         localStorage.setItem(EDUCATION_VERIFYING_LOCALSTORAGE_ITEM, 'yes')
+
+      if (isBridgeMode) {
+        setInit(true)
+        return
+      }
 
       try {
         const isFinished = await isSetupFinished()

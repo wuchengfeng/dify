@@ -30,6 +30,7 @@ import type {
 import Cookies from 'js-cookie'
 import Toast from '@/app/components/base/toast'
 import { API_PREFIX, CSRF_COOKIE_NAME, CSRF_HEADER_NAME, IS_CE_EDITION, PASSPORT_HEADER_NAME, PUBLIC_API_PREFIX, WEB_APP_SHARE_CODE_HEADER_NAME } from '@/config'
+import { isStarshipBridgeRequest } from '@/utils/starship-bridge'
 import { asyncRunSafe } from '@/utils'
 import { basePath } from '@/utils/var'
 import { base, ContentType, getBaseOptions } from './fetch'
@@ -756,7 +757,10 @@ export const request = async<T>(url: string, options = {}, otherOptions?: IOther
     if (errResp.status === 401) {
       const [parseErr, errRespData] = await asyncRunSafe<ResponseError>(errResp.json())
       const loginUrl = `${globalThis.location.origin}${basePath}/signin`
+      const isBridgeMode = isStarshipBridgeRequest()
       if (parseErr) {
+        if (isBridgeMode)
+          return Promise.reject(err)
         globalThis.location.href = loginUrl
         return Promise.reject(err)
       }
@@ -775,6 +779,8 @@ export const request = async<T>(url: string, options = {}, otherOptions?: IOther
       }
       if (code === 'unauthorized_and_force_logout') {
         // Cookies will be cleared by the backend
+        if (isBridgeMode)
+          return Promise.reject(errRespData)
         globalThis.location.reload()
         return Promise.reject(err)
       }
@@ -798,6 +804,9 @@ export const request = async<T>(url: string, options = {}, otherOptions?: IOther
         jumpTo(`${globalThis.location.origin}${basePath}/install`)
         return Promise.reject(err)
       }
+
+      if (isBridgeMode)
+        return Promise.reject(errRespData)
 
       // refresh token
       const [refreshErr] = await asyncRunSafe(refreshAccessTokenOrReLogin(TIME_OUT))

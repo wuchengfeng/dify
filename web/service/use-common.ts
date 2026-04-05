@@ -24,6 +24,7 @@ import type {
 import type { RETRIEVE_METHOD } from '@/types/app'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { IS_DEV } from '@/config'
+import { isStarshipBridgeRequest } from '@/utils/starship-bridge'
 import { get, post } from './base'
 import { useInvalid } from './use-base'
 
@@ -92,6 +93,7 @@ export const useUserProfile = () => {
         },
       }
     },
+    enabled: !isStarshipBridgeRequest(),
     staleTime: 0,
     gcTime: 0,
   })
@@ -109,6 +111,7 @@ export const useCurrentWorkspace = () => {
   return useQuery<ICurrentWorkspace>({
     queryKey: commonQueryKeys.currentWorkspace,
     queryFn: () => post<ICurrentWorkspace>('/workspaces/current'),
+    enabled: !isStarshipBridgeRequest(),
   })
 }
 
@@ -217,6 +220,9 @@ export const useIsLogin = () => {
     staleTime: 0,
     gcTime: 0,
     queryFn: async (): Promise<isLogin> => {
+      if (isStarshipBridgeRequest())
+        return { logged_in: true }
+
       try {
         await get('/account/profile', {}, {
           silent: true,

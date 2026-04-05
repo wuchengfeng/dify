@@ -1,4 +1,5 @@
 import { AG_API_BASE } from '@/config'
+import { BRIDGE_TOKEN_QUERY_KEY, BRIDGE_TOKEN_STORAGE_KEY, isStarshipBridgeRequest, readStarshipBridgeToken } from '@/utils/starship-bridge'
 
 type Timestamp = number
 
@@ -190,9 +191,6 @@ const APPRECIATION_STORAGE_KEY = 'starship-public-appreciation'
 const ROOT_KEY = '__STARSHIP_MOCK_DB__'
 const ROOT_MODE_KEY = '__STARSHIP_DB_MODE__'
 const ROOT_BRIDGE_TOKEN_KEY = '__STARSHIP_BRIDGE_TOKEN__'
-const BRIDGE_TOKEN_QUERY_KEY = 'bridge_token'
-const BRIDGE_TOKEN_STORAGE_KEY = 'ag-starship-bridge-token'
-
 type StarshipApiResponse<T> = {
   success: boolean
   data?: T
@@ -837,21 +835,17 @@ const sanitizeBridgeTokenFromUrl = (token: string) => {
 }
 
 const readBridgeToken = () => {
-  if (typeof window === 'undefined')
-    return ''
-
-  const url = new URL(window.location.href)
-  const queryToken = url.searchParams.get(BRIDGE_TOKEN_QUERY_KEY) || ''
+  const queryToken = readStarshipBridgeToken()
   if (queryToken) {
     storeBridgeToken(queryToken)
     sanitizeBridgeTokenFromUrl(queryToken)
     return queryToken
   }
 
-  return window.localStorage.getItem(BRIDGE_TOKEN_STORAGE_KEY) || ''
+  return ''
 }
 
-export const isStarshipBridgeMode = () => Boolean(readBridgeToken())
+export const isStarshipBridgeMode = () => isStarshipBridgeRequest()
 
 const bridgeBootstrapPath = (bridgeToken: string) =>
   `${AG_API_BASE.replace(/\/$/, '')}/ag/starship/bootstrap?bridge_token=${encodeURIComponent(bridgeToken)}`

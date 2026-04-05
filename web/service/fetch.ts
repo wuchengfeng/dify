@@ -4,6 +4,7 @@ import Cookies from 'js-cookie'
 import ky, { HTTPError } from 'ky'
 import Toast from '@/app/components/base/toast'
 import { API_PREFIX, APP_VERSION, CSRF_COOKIE_NAME, CSRF_HEADER_NAME, IS_MARKETPLACE, MARKETPLACE_API_PREFIX, PASSPORT_HEADER_NAME, PUBLIC_API_PREFIX, WEB_APP_SHARE_CODE_HEADER_NAME } from '@/config'
+import { isStarshipBridgeRequest } from '@/utils/starship-bridge'
 import { getWebAppAccessToken, getWebAppPassport } from './webapp-auth'
 
 const TIME_OUT = 100000
@@ -50,7 +51,7 @@ const afterResponseErrorCode = (otherOptions: IOtherOptions): AfterResponseHook 
       if (shouldNotifyError)
         Toast.notify({ type: 'error', message: errorData.message })
 
-      if (response.status === 403 && errorData?.code === 'already_setup')
+      if (response.status === 403 && errorData?.code === 'already_setup' && !isStarshipBridgeRequest())
         globalThis.location.href = `${globalThis.location.origin}/signin`
     }
   }

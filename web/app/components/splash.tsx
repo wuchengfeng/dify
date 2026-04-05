@@ -1,13 +1,20 @@
 'use client'
 import type { FC, PropsWithChildren } from 'react'
 import * as React from 'react'
+import { usePathname } from 'next/navigation'
 import { useIsLogin } from '@/service/use-common'
+import { isStarshipBridgeRequest } from '@/utils/starship-bridge'
 import Loading from './base/loading'
 
 const Splash: FC<PropsWithChildren> = () => {
+  const pathname = usePathname()
+  const isBridgeMode = isStarshipBridgeRequest(pathname)
   // would auto redirect to signin page if not logged in
   const { isLoading, data: loginData } = useIsLogin()
   const isLoggedIn = loginData?.logged_in
+
+  if (isBridgeMode)
+    return null
 
   if (isLoading || !isLoggedIn) {
     return (
