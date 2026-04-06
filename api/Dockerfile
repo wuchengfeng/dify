@@ -6,13 +6,13 @@ WORKDIR /app/api
 # Install uv
 ENV UV_VERSION=0.8.9
 
-RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple uv==${UV_VERSION}
+RUN pip install --no-cache-dir -i https://mirrors.cloud.tencent.com/pypi/simple uv==${UV_VERSION}
 
 
 FROM base AS packages
 
 # China mirror for apt
-RUN sed -i 's@deb.debian.org@mirrors.aliyun.com@g' /etc/apt/sources.list.d/debian.sources
+RUN sed -i 's@deb.debian.org@mirrors.cloud.tencent.com@g' /etc/apt/sources.list.d/debian.sources
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -24,7 +24,7 @@ RUN apt-get update \
 # Install Python dependencies
 COPY pyproject.toml uv.lock ./
 ENV UV_HTTP_TIMEOUT=300
-ENV UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+ENV UV_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
 ENV UV_EXTRA_INDEX_URL=https://pypi.org/simple
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev
 
@@ -60,7 +60,7 @@ RUN groupadd -r -g ${dify_uid} dify && \
     useradd -r -u ${dify_uid} -g ${dify_uid} -s /bin/bash dify && \
     chown -R dify:dify /app
 
-RUN sed -i 's@deb.debian.org@mirrors.aliyun.com@g' /etc/apt/sources.list.d/debian.sources
+RUN sed -i 's@deb.debian.org@mirrors.cloud.tencent.com@g' /etc/apt/sources.list.d/debian.sources
 
 RUN \
     apt-get update \

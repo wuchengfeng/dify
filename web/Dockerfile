@@ -3,7 +3,7 @@ FROM node:22-alpine AS base
 LABEL maintainer="takatost@gmail.com"
 
 # China mirrors
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.cloud.tencent.com/g' /etc/apk/repositories
 RUN npm config set registry https://registry.npmmirror.com
 
 RUN apk add --no-cache tzdata
@@ -24,7 +24,7 @@ COPY package.json pnpm-lock.yaml /app/web/
 # Use packageManager from package.json
 RUN corepack install
 
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,target=/pnpm/store pnpm install --frozen-lockfile
 
 # build resources
 FROM base AS builder
