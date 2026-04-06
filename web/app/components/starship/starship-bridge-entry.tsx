@@ -8,13 +8,11 @@ import { BRIDGE_TOKEN_QUERY_KEY, persistStarshipBridgeToken } from '@/utils/star
 
 const StarshipBridgeEntry = () => {
   const searchParams = useSearchParams()
+  const bridgeToken = searchParams.get(BRIDGE_TOKEN_QUERY_KEY) || ''
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const bridgeToken = searchParams.get(BRIDGE_TOKEN_QUERY_KEY) || ''
-
     if (!bridgeToken) {
-      setError('进入班级的凭证缺失，请回到个人中心重新进入。')
       return
     }
 
@@ -28,7 +26,7 @@ const StarshipBridgeEntry = () => {
       .catch((err) => {
         setError(err instanceof Error ? err.message : '进入班级失败，请回到个人中心重试。')
       })
-  }, [searchParams])
+  }, [bridgeToken])
 
   return (
     <div className="mx-auto flex min-h-[60vh] w-full max-w-2xl items-center justify-center px-4 py-10">
@@ -50,6 +48,12 @@ const StarshipBridgeEntry = () => {
               正在为你打开星舰空间，请稍等一下。
             </p>
           </>
+        )}
+
+        {!bridgeToken && !error && (
+          <div className="mt-6 rounded-[20px] border border-rose-400/25 bg-rose-400/10 px-4 py-4 text-sm leading-7 text-rose-100">
+            进入班级的凭证缺失，请回到个人中心重新进入。
+          </div>
         )}
 
         {error && (
