@@ -1,0 +1,17 @@
+# Override: use pre-built images from GitHub Packages instead of local build
+services:
+  api:
+    image: ghcr.io/wuchengfeng/dify/dify-api:latest
+    build: !reset null
+
+  worker:
+    image: ghcr.io/wuchengfeng/dify/dify-api:latest
+    build: !reset null
+
+  worker_beat:
+    image: ghcr.io/wuchengfeng/dify/dify-api:latest
+    build: !reset null
+
+  web:
+    image: ghcr.io/wuchengfeng/dify/dify-web:latest
+    build: !reset null
