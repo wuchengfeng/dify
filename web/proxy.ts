@@ -15,6 +15,12 @@ const wrapResponseWithXFrameOptions = (response: NextResponse, pathname: string)
 }
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  if (pathname === '/starship-bridge') {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/starship/bridge'
+    return NextResponse.redirect(redirectUrl)
+  }
+
   const requestHeaders = new Headers(request.headers)
   const response = NextResponse.next({
     request: {

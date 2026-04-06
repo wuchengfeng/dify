@@ -6,7 +6,7 @@ import Loading from '@/app/components/base/loading'
 import { fetchStarshipSession } from '@/service/starship'
 import { BRIDGE_TOKEN_QUERY_KEY, persistStarshipBridgeToken } from '@/utils/starship-bridge'
 
-const StarshipBridgePage = () => {
+const StarshipBridgeEntry = () => {
   const searchParams = useSearchParams()
   const [error, setError] = useState('')
 
@@ -31,7 +31,7 @@ const StarshipBridgePage = () => {
   }, [searchParams])
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_32%),linear-gradient(180deg,_#08111f_0%,_#0b1424_48%,_#0f172a_100%)] px-6 text-slate-100">
+    <div className="mx-auto flex min-h-[60vh] w-full max-w-2xl items-center justify-center px-4 py-10">
       <div className="w-full max-w-lg rounded-[28px] border border-white/10 bg-[#0b1424]/90 p-8 text-center shadow-[0_24px_80px_rgba(2,8,23,0.45)] backdrop-blur">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[18px] bg-gradient-to-br from-sky-400 via-blue-500 to-cyan-400 text-2xl shadow-[0_16px_40px_rgba(56,189,248,0.28)]">
           🚀
@@ -62,4 +62,4 @@ const StarshipBridgePage = () => {
   )
 }
 
-export default StarshipBridgePage
+export default StarshipBridgeEntry
