@@ -26,7 +26,7 @@ COPY pyproject.toml uv.lock ./
 ENV UV_HTTP_TIMEOUT=300
 ENV UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ENV UV_EXTRA_INDEX_URL=https://pypi.org/simple
-RUN uv sync --locked --no-dev
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev
 
 # production stage
 FROM base AS production

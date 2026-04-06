@@ -1,10 +1,29 @@
 # Dify 腾讯云部署方案
-## 更新代码
+## 更新部署
+
+推送 tag 后 GitHub Actions 会自动 SSH 到服务器完成部署，无需手动操作。
+
+```bash
+# 本地打 tag 并推送，自动触发部署
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+### 需要配置的 GitHub Secrets
+
+在仓库 Settings → Secrets and variables → Actions 中添加：
+
+| Secret | 说明 |
+| --- | --- |
+| `PROD_SSH_HOST` | 服务器 IP |
+| `PROD_SSH_USER` | SSH 用户名（如 root） |
+| `PROD_SSH_PRIVATE_KEY` | SSH 私钥（`cat ~/.ssh/id_rsa`） |
+
+### 手动更新（备用）
 ```bash
 cd /data/dify
 git pull
-cd docker && docker compose up -d --build
-
+cd docker && DOCKER_BUILDKIT=1 docker compose up -d --build
 ```
 
 ## 服务器配置要求
