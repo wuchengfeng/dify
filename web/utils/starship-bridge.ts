@@ -27,6 +27,13 @@ export const readStarshipBridgeToken = () => {
   return window.localStorage.getItem(BRIDGE_TOKEN_STORAGE_KEY) || ''
 }
 
+export const persistStarshipBridgeToken = (token: string) => {
+  if (typeof window === 'undefined' || !token)
+    return
+
+  window.localStorage.setItem(BRIDGE_TOKEN_STORAGE_KEY, token)
+}
+
 export const isStarshipBridgeRequest = (pathname?: string | null) => {
   const effectivePath = pathname ?? (typeof window !== 'undefined' ? window.location.pathname : '')
   return isStarshipPath(effectivePath) && Boolean(readStarshipBridgeToken())

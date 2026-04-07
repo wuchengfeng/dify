@@ -3,11 +3,23 @@ set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/data/dify}"
 DOCKER_DIR="${DOCKER_DIR:-$REPO_DIR/docker}"
+DEPLOY_GIT_REF="${DEPLOY_GIT_REF:-main}"
 
 cd "$REPO_DIR"
 
-echo "Pulling latest code..."
-git pull origin main
+echo "Fetching latest code and tags..."
+git fetch origin --tags
+
+if git show-ref --verify --quiet "refs/tags/$DEPLOY_GIT_REF"; then
+  echo "Checking out release tag: $DEPLOY_GIT_REF"
+  git checkout --force "$DEPLOY_GIT_REF"
+elif git ls-remote --exit-code --heads origin "$DEPLOY_GIT_REF" >/dev/null 2>&1; then
+  echo "Checking out branch: $DEPLOY_GIT_REF"
+  git checkout -B "$DEPLOY_GIT_REF" "origin/$DEPLOY_GIT_REF"
+else
+  echo "Deployment ref not found: $DEPLOY_GIT_REF"
+  exit 1
+fi
 
 cd "$DOCKER_DIR"
 
