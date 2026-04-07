@@ -3,7 +3,7 @@ FROM node:22-alpine AS base
 LABEL maintainer="takatost@gmail.com"
 
 # China mirrors
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.cloud.tencent.com/g' /etc/apk/repositories
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tencentyun.com/g' /etc/apk/repositories
 RUN npm config set registry https://registry.npmmirror.com
 
 RUN apk add --no-cache tzdata
