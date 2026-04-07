@@ -12,35 +12,16 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      DEPLOY_HOST: ${{ secrets.PROD_SSH_HOST || secrets.HOST || secrets.SERVER_HOST || secrets.SSH_HOST || vars.PROD_SSH_HOST || vars.HOST || vars.SERVER_HOST || vars.SSH_HOST }}
-      DEPLOY_PORT: ${{ secrets.PROD_SSH_PORT || secrets.PORT || secrets.SERVER_PORT || secrets.SSH_PORT || vars.PROD_SSH_PORT || vars.PORT || vars.SERVER_PORT || vars.SSH_PORT || '22' }}
-      DEPLOY_USERNAME: ${{ secrets.PROD_SSH_USER || secrets.USERNAME || secrets.SERVER_USERNAME || secrets.SSH_USERNAME || vars.PROD_SSH_USER || vars.USERNAME || vars.SERVER_USERNAME || vars.SSH_USERNAME }}
-      DEPLOY_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY || secrets.KEY || secrets.SSH_KEY || secrets.PRIVATE_KEY || vars.PROD_SSH_PRIVATE_KEY || vars.KEY || vars.SSH_KEY || vars.PRIVATE_KEY }}
     steps:
-      - name: Validate deploy secrets
-        run: |
-          if [ -z "$DEPLOY_HOST" ]; then
-            echo "::error::Missing deploy host secret. Supported names: PROD_SSH_HOST / HOST / SERVER_HOST / SSH_HOST"
-            exit 1
-          fi
-          if [ -z "$DEPLOY_USERNAME" ]; then
-            echo "::error::Missing deploy username secret. Supported names: PROD_SSH_USER / USERNAME / SERVER_USERNAME / SSH_USERNAME"
-            exit 1
-          fi
-          if [ -z "$DEPLOY_KEY" ]; then
-            echo "::error::Missing deploy key secret. Supported names: PROD_SSH_PRIVATE_KEY / KEY / SSH_KEY / PRIVATE_KEY"
-            exit 1
-          fi
-
-      - name: Deploy tagged release to server
-        uses: appleboy/ssh-action@master
+      - name: Deploy to server
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.PROD_SSH_HOST }}
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
-          command_timeout: 240m
+          command_timeout: 300m
           script: |
             cd /data/dify
-            chmod +x /data/dify/docker/deploy-ag.sh
-            DEPLOY_GIT_REF=${{ github.ref_name }} /data/dify/docker/deploy-ag.sh
+            git fetch --tags
+            git checkout ${{ github.ref_name }}
+            cd docker && DOCKER_BUILDKIT=1 docker compose up -d --build
