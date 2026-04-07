@@ -28,7 +28,7 @@ ENV UV_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
 ENV UV_EXTRA_INDEX_URL=https://pypi.org/simple
 RUN --mount=type=cache,target=/root/.cache/uv \
     for i in 1 2 3 4 5; do \
-      uv sync --locked --no-dev && break || \
+      uv sync --locked --no-dev -v && break || \
       echo "=== Retry $i/5, cached packages will be reused ===" && sleep 10; \
     done
 

@@ -24,4 +24,4 @@ jobs:
             cd /data/dify
             git fetch --tags
             git checkout ${{ github.ref_name }}
-            cd docker && DOCKER_BUILDKIT=1 docker compose up -d --build
+            cd docker && DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain docker compose up -d --build
