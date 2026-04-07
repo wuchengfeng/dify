@@ -106,15 +106,13 @@ ENV VIRTUAL_ENV=/app/api/.venv
 COPY --from=packages --chown=dify:dify ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
-# Download nltk data
-RUN mkdir -p /usr/local/share/nltk_data \
-    && NLTK_DATA=/usr/local/share/nltk_data python -c "import nltk; from unstructured.nlp.tokenize import download_nltk_packages; nltk.download('punkt'); nltk.download('averaged_perceptron_tagger'); nltk.download('stopwords'); download_nltk_packages()" \
-    && chmod -R 755 /usr/local/share/nltk_data
+# Copy pre-downloaded nltk data
+COPY --chown=dify:dify nltk_data/ /usr/local/share/nltk_data/
+RUN chmod -R 755 /usr/local/share/nltk_data
 
+# tiktoken data will be downloaded at runtime
 ENV TIKTOKEN_CACHE_DIR=/app/api/.tiktoken_cache
-
-RUN python -c "import tiktoken; tiktoken.encoding_for_model('gpt2')" \
-    && chown -R dify:dify ${TIKTOKEN_CACHE_DIR}
+RUN mkdir -p ${TIKTOKEN_CACHE_DIR} && chown -R dify:dify ${TIKTOKEN_CACHE_DIR}
 
 # Copy source code
 COPY --chown=dify:dify . /app/api/
