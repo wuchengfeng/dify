@@ -1,14 +1,35 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import Loading from '@/app/components/base/loading'
 import { fetchStarshipSession } from '@/service/starship'
-import { BRIDGE_TOKEN_QUERY_KEY, persistStarshipBridgeToken } from '@/utils/starship-bridge'
+import { persistStarshipBridgeToken, readStarshipBridgeToken } from '@/utils/starship-bridge'
+
+const subscribeBridgeToken = (onStoreChange: () => void) => {
+  if (typeof window === 'undefined') {
+    return () => {}
+  }
+
+  const handleChange = () => onStoreChange()
+  window.addEventListener('popstate', handleChange)
+  window.addEventListener('hashchange', handleChange)
+  window.addEventListener('storage', handleChange)
+
+  return () => {
+    window.removeEventListener('popstate', handleChange)
+    window.removeEventListener('hashchange', handleChange)
+    window.removeEventListener('storage', handleChange)
+  }
+}
+
+const getBridgeTokenSnapshot = () => readStarshipBridgeToken()
+const getEmptyBridgeToken = () => ''
+const getClientReadySnapshot = () => true
+const getServerReadySnapshot = () => false
 
 const StarshipBridgeEntry = () => {
-  const searchParams = useSearchParams()
-  const bridgeToken = searchParams.get(BRIDGE_TOKEN_QUERY_KEY) || ''
+  const bridgeToken = useSyncExternalStore(subscribeBridgeToken, getBridgeTokenSnapshot, getEmptyBridgeToken)
+  const isClientReady = useSyncExternalStore(() => () => {}, getClientReadySnapshot, getServerReadySnapshot)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -50,7 +71,7 @@ const StarshipBridgeEntry = () => {
           </>
         )}
 
-        {!bridgeToken && !error && (
+        {isClientReady && !bridgeToken && !error && (
           <div className="mt-6 rounded-[20px] border border-rose-400/25 bg-rose-400/10 px-4 py-4 text-sm leading-7 text-rose-100">
             进入班级的凭证缺失，请回到个人中心重新进入。
           </div>
