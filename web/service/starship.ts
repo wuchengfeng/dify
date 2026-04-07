@@ -851,9 +851,7 @@ const bridgeBootstrapPath = (bridgeToken: string) =>
   `${AG_API_BASE.replace(/\/$/, '')}/ag/starship/bootstrap?bridge_token=${encodeURIComponent(bridgeToken)}`
 
 const fetchBridgeBootstrap = async (bridgeToken: string): Promise<MockDb> => {
-  const response = await fetch(bridgeBootstrapPath(bridgeToken), {
-    credentials: 'include',
-  })
+  const response = await fetch(bridgeBootstrapPath(bridgeToken))
   const payload = await response.json().catch(() => ({})) as StarshipApiResponse<MockDb>
   if (!response.ok || !payload.success || !payload.data)
     throw new Error(payload.message || '无法载入 AG 星舰空间')
@@ -876,16 +874,18 @@ const ensureDbReady = async (): Promise<MockDb> => {
       root[ROOT_MODE_KEY] === 'bridge'
       && root[ROOT_BRIDGE_TOKEN_KEY] === bridgeToken
       && root[ROOT_KEY]
-    )
+    ) {
       return root[ROOT_KEY] as MockDb
+    }
 
     const bridgeDb = await fetchBridgeBootstrap(bridgeToken)
     setLoadedDb(bridgeDb, 'bridge', bridgeToken)
     return bridgeDb
   }
 
-  if (!root[ROOT_KEY] || root[ROOT_MODE_KEY] !== 'mock')
+  if (!root[ROOT_KEY] || root[ROOT_MODE_KEY] !== 'mock') {
     setLoadedDb(createInitialDb(), 'mock')
+  }
 
   return root[ROOT_KEY] as MockDb
 }

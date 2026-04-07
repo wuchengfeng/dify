@@ -15,6 +15,24 @@ const getStringConfig = (
   return defaultValue
 }
 
+const isLocalApiBase = (value: string | undefined) => {
+  if (!value)
+    return false
+
+  return /^https?:\/\/(?:localhost|127(?:\.\d{1,3}){3})(?::\d+)?/i.test(value)
+}
+
+const inferAgApiBaseFromLocation = () => {
+  if (typeof window === 'undefined')
+    return ''
+
+  const { hostname, origin, protocol } = window.location
+  if (hostname.startsWith('app.'))
+    return `${protocol}//${hostname.slice(4)}/api`
+
+  return `${origin}/api`
+}
+
 export const API_PREFIX = getStringConfig(
   env.NEXT_PUBLIC_API_PREFIX,
   'http://localhost:5001/console/api',
@@ -41,10 +59,20 @@ export const AMPLITUDE_API_KEY = getStringConfig(
   env.NEXT_PUBLIC_AMPLITUDE_API_KEY,
   '',
 )
-export const AG_API_BASE = getStringConfig(
-  env.NEXT_PUBLIC_AG_API_BASE,
-  PUBLIC_API_PREFIX || 'http://localhost:3000/api',
-)
+export const AG_API_BASE = (() => {
+  const configuredBase = env.NEXT_PUBLIC_AG_API_BASE?.trim()
+  if (configuredBase && !isLocalApiBase(configuredBase))
+    return configuredBase
+
+  const inferredBase = inferAgApiBaseFromLocation()
+  if (inferredBase)
+    return inferredBase
+
+  return getStringConfig(
+    configuredBase,
+    PUBLIC_API_PREFIX || 'http://localhost:3000/api',
+  )
+})()
 
 export const IS_DEV = process.env.NODE_ENV === 'development'
 export const IS_PROD = process.env.NODE_ENV === 'production'
