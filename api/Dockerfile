@@ -23,9 +23,11 @@ RUN apt-get update \
 
 # Install Python dependencies
 COPY pyproject.toml uv.lock ./
+COPY packages/ /tmp/packages/
 ENV UV_HTTP_TIMEOUT=300
 ENV UV_INDEX_URL=https://mirrors.tencentyun.com/pypi/simple
 ENV UV_EXTRA_INDEX_URL=https://pypi.org/simple
+ENV UV_FIND_LINKS=/tmp/packages
 RUN --mount=type=cache,target=/root/.cache/uv \
     for i in 1 2 3 4 5; do \
       uv sync --locked --no-dev -v && break || \
