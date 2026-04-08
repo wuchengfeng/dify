@@ -1,4 +1,4 @@
-import CoachGroupClassroom from '@/app/components/starship/coach-group-classroom'
+import CoachGroupWorkspace from '@/app/components/starship/coach-group-workspace'
 
 type CoachGroupPageProps = {
   params: Promise<{
@@ -9,7 +9,7 @@ type CoachGroupPageProps = {
 const CoachGroupPage = async ({ params }: CoachGroupPageProps) => {
   const { groupId } = await params
 
-  return <CoachGroupClassroom groupId={groupId} />
+  return <CoachGroupWorkspace groupId={groupId} />
 }
 
 export default CoachGroupPage
