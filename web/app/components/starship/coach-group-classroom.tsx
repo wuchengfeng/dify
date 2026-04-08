@@ -117,9 +117,17 @@ const CoachGroupClassroom = ({ groupId }: CoachGroupClassroomProps) => {
   )
 
   const studentAgents = useMemo(
-    () => groupAgents.filter(agent => agent.owner_role === 'student').slice(0, 6),
+    () => groupAgents
+      .filter(agent => agent.owner_role === 'student' && agent.project_kind !== 'publish')
+      .slice(0, 6),
     [groupAgents],
   )
+
+  const emptyMessage = !currentGroup?.task_id
+    ? '这个班还没有任务，先回到班级任务管理页创建一个任务。'
+    : !currentGroup.task_published_to_students
+        ? '这个班的任务还没正式发布给孩子。发布之后，孩子们一进入个人中心，这里就会开始出现他们的创作窗口。'
+        : t('coach.classroomEmptyDescription')
 
   const selectedTestAgent = useMemo(
     () => groupAgents.find(agent => agent.id === selectedAgentId)
@@ -305,7 +313,7 @@ const CoachGroupClassroom = ({ groupId }: CoachGroupClassroomProps) => {
                   {t('coach.classroomEmpty')}
                 </div>
                 <div className="mt-2 max-w-xl text-sm leading-6 text-slate-400">
-                  {t('coach.classroomEmptyDescription')}
+                  {emptyMessage}
                 </div>
               </div>
             </section>

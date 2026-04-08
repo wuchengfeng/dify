@@ -70,6 +70,10 @@ export type StarshipGroup = {
   student_count?: number
   updated_at?: Timestamp
   coach_agent_id?: string | null
+  task_id?: string | null
+  task_status?: 'missing' | 'draft' | 'published' | 'main_published'
+  task_published_to_students?: boolean
+  task_main_published?: boolean
 }
 
 export type StarshipSession = {
@@ -850,12 +854,33 @@ export const isStarshipBridgeMode = () => isStarshipBridgeRequest()
 const bridgeBootstrapPath = (bridgeToken: string) =>
   `${AG_API_BASE.replace(/\/$/, '')}/ag/starship/bootstrap?bridge_token=${encodeURIComponent(bridgeToken)}`
 
+const bridgeMutationPath = (path: string, bridgeToken: string) =>
+  `${AG_API_BASE.replace(/\/$/, '')}${path}${path.includes('?') ? '&' : '?'}bridge_token=${encodeURIComponent(bridgeToken)}`
+
 const fetchBridgeBootstrap = async (bridgeToken: string): Promise<MockDb> => {
   const response = await fetch(bridgeBootstrapPath(bridgeToken))
   const payload = await response.json().catch(() => ({})) as StarshipApiResponse<MockDb>
   if (!response.ok || !payload.success || !payload.data)
     throw new Error(payload.message || '无法载入 AG 星舰空间')
   return payload.data
+}
+
+const bridgeRequest = async <T>(path: string, init?: RequestInit): Promise<T> => {
+  const bridgeToken = readBridgeToken()
+  if (!bridgeToken)
+    throw new Error('进入班级的凭证缺失，请回到个人中心重新进入。')
+
+  const response = await fetch(bridgeMutationPath(path, bridgeToken), {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers || {}),
+    },
+  })
+  const payload = await response.json().catch(() => ({})) as StarshipApiResponse<T>
+  if (!response.ok || !payload.success)
+    throw new Error(payload.message || '星舰操作失败，请稍后再试')
+  return payload.data as T
 }
 
 const setLoadedDb = (db: MockDb, mode: 'mock' | 'bridge', bridgeToken = '') => {
@@ -865,29 +890,48 @@ const setLoadedDb = (db: MockDb, mode: 'mock' | 'bridge', bridgeToken = '') => {
   root[ROOT_BRIDGE_TOKEN_KEY] = bridgeToken
 }
 
-const ensureDbReady = async (): Promise<MockDb> => {
+const loadBridgeDb = async (bridgeToken: string, force = false): Promise<MockDb> => {
   const root = getRoot()
-  const bridgeToken = readBridgeToken()
-
-  if (bridgeToken) {
-    if (
-      root[ROOT_MODE_KEY] === 'bridge'
-      && root[ROOT_BRIDGE_TOKEN_KEY] === bridgeToken
-      && root[ROOT_KEY]
-    ) {
-      return root[ROOT_KEY] as MockDb
-    }
-
-    const bridgeDb = await fetchBridgeBootstrap(bridgeToken)
-    setLoadedDb(bridgeDb, 'bridge', bridgeToken)
-    return bridgeDb
+  if (
+    !force
+    && root[ROOT_MODE_KEY] === 'bridge'
+    && root[ROOT_BRIDGE_TOKEN_KEY] === bridgeToken
+    && root[ROOT_KEY]
+  ) {
+    return root[ROOT_KEY] as MockDb
   }
 
+  const bridgeDb = await fetchBridgeBootstrap(bridgeToken)
+  setLoadedDb(bridgeDb, 'bridge', bridgeToken)
+  return bridgeDb
+}
+
+const ensureDbReady = async (): Promise<MockDb> => {
+  const bridgeToken = readBridgeToken()
+
+  if (bridgeToken)
+    return loadBridgeDb(bridgeToken)
+
+  const root = getRoot()
   if (!root[ROOT_KEY] || root[ROOT_MODE_KEY] !== 'mock') {
     setLoadedDb(createInitialDb(), 'mock')
   }
 
   return root[ROOT_KEY] as MockDb
+}
+
+const refreshBridgeDb = async (): Promise<MockDb> => {
+  const bridgeToken = readBridgeToken()
+  if (!bridgeToken)
+    return ensureDbReady()
+
+  return loadBridgeDb(bridgeToken, true)
+}
+
+const ensureFreshDb = async (): Promise<MockDb> => {
+  if (isStarshipBridgeMode())
+    return refreshBridgeDb()
+  return ensureDbReady()
 }
 
 const getDb = (): MockDb => {
@@ -999,7 +1043,7 @@ const createDraftSnapshot = (appId: string) => {
 // ---- Demo session ----
 
 export const fetchStarshipSession = async (): Promise<StarshipSession> =>
-  withDelay((await ensureDbReady(), currentSession()))
+  withDelay((await ensureFreshDb(), currentSession()))
 
 export const setStarshipMockRole = async (role: StarshipRole): Promise<{ role: StarshipRole }> => {
   await ensureDbReady()
@@ -1041,7 +1085,7 @@ export const assignStarshipMember = async (_account_id: string, _role: StarshipR
 // ---- Student APIs ----
 
 export const fetchStudentDashboard = async (): Promise<StudentDashboard> => {
-  await ensureDbReady()
+  await ensureFreshDb()
   const db = getDb()
   const session = currentSession()
   const studentAgents = db.agents
@@ -1084,7 +1128,7 @@ export const fetchStudentDashboard = async (): Promise<StudentDashboard> => {
 // ---- Agent APIs ----
 
 export const fetchMyAgents = async (): Promise<{ items: StarshipAgent[] }> => {
-  await ensureDbReady()
+  await ensureFreshDb()
   const session = currentSession()
   return withDelay({
     items: getDb().agents.filter(agent => agent.owner_id === session.user_id).sort((a, b) => (b.updated_at || b.created_at) - (a.updated_at || a.created_at)).map(toPublicAgent),
@@ -1100,6 +1144,28 @@ export const createStarshipAgent = async (data: {
   group_id?: string
 }): Promise<{ id: string, name: string }> => {
   await ensureDbReady()
+  if (isStarshipBridgeMode()) {
+    const session = currentSession()
+    if (session.role !== 'coach' || !data.group_id)
+      throw new Error('请先进入班级，再由教练创建任务。')
+
+    const result = await bridgeRequest<{ coach_agent_id: string, task_id: string }>(
+      `/ag/starship/groups/${encodeURIComponent(data.group_id)}/task`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          name: data.name,
+          description: data.description,
+          teacher_note: data.description,
+          pre_prompt: data.pre_prompt,
+          knowledge_items: [],
+        }),
+      },
+    )
+    await refreshBridgeDb()
+    return withDelay({ id: result.coach_agent_id, name: data.name })
+  }
+
   const db = getDb()
   const session = currentSession()
   const fallbackGroupId = session.role === 'coach'
@@ -1182,7 +1248,9 @@ export const submitAgentVersion = async (appId: string): Promise<{ id: string, v
 // ---- Coach APIs ----
 
 export const fetchPendingVersions = async (): Promise<{ items: PendingVersion[] }> => {
-  await ensureDbReady()
+  await ensureFreshDb()
+  if (isStarshipBridgeMode())
+    return withDelay({ items: [] })
   const db = getDb()
   const session = currentSession()
   const visibleGroupIds = new Set(
@@ -1235,7 +1303,7 @@ export const fetchSquare = async (params: {
   limit?: number
   search?: string
 }): Promise<{ items: StarshipAgent[], total: number, page: number, limit: number }> => {
-  await ensureDbReady()
+  await ensureFreshDb()
   const search = params.search?.trim().toLowerCase() || ''
   const limit = params.limit || 20
   const page = params.page || 1
@@ -1276,7 +1344,7 @@ const fetchMyGroupsSync = (): { items: StarshipGroup[] } => {
 }
 
 export const fetchMyGroups = async (): Promise<{ items: StarshipGroup[] }> =>
-  withDelay((await ensureDbReady(), {
+  withDelay((await ensureFreshDb(), {
     items: fetchMyGroupsSync().items.sort((a, b) => {
       const statusWeight = (value?: 'active' | 'history') => value === 'active' ? 1 : 0
       const statusDiff = statusWeight(b.status) - statusWeight(a.status)
@@ -1299,9 +1367,74 @@ export const createGroup = async (data: { name: string, description: string, mem
 }
 
 export const fetchGroupAgents = async (groupId: string): Promise<{ items: StarshipAgent[] }> =>
-  withDelay((await ensureDbReady(), {
+  withDelay((await ensureFreshDb(), {
     items: getDb().agents.filter(agent => agent.group_id === groupId).sort((a, b) => (b.updated_at || b.created_at) - (a.updated_at || a.created_at)).map(toPublicAgent),
   }))
+
+export const upsertStarshipTaskForGroup = async (groupId: string, payload: {
+  name: string
+  description: string
+  teacher_note: string
+  pre_prompt: string
+  knowledge_items: KnowledgeItem[]
+}) => {
+  await ensureDbReady()
+  if (isStarshipBridgeMode()) {
+    const result = await bridgeRequest<{ coach_agent_id: string, task_id: string }>(
+      `/ag/starship/groups/${encodeURIComponent(groupId)}/task`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    )
+    await refreshBridgeDb()
+    return withDelay(result)
+  }
+
+  throw new Error('当前环境不支持班级任务管理')
+}
+
+export const deleteStarshipTask = async (taskId: string) => {
+  await ensureDbReady()
+  if (isStarshipBridgeMode()) {
+    const result = await bridgeRequest<{ task_id: string }>(
+      `/ag/starship/tasks/${encodeURIComponent(taskId)}`,
+      { method: 'DELETE' },
+    )
+    await refreshBridgeDb()
+    return withDelay(result)
+  }
+
+  throw new Error('当前环境不支持删除班级任务')
+}
+
+export const publishStarshipTaskToStudents = async (taskId: string) => {
+  await ensureDbReady()
+  if (isStarshipBridgeMode()) {
+    const result = await bridgeRequest<{ task_id: string }>(
+      `/ag/starship/tasks/${encodeURIComponent(taskId)}/publish`,
+      { method: 'POST' },
+    )
+    await refreshBridgeDb()
+    return withDelay(result)
+  }
+
+  throw new Error('当前环境不支持发布班级任务')
+}
+
+export const publishStarshipTaskMain = async (taskId: string) => {
+  await ensureDbReady()
+  if (isStarshipBridgeMode()) {
+    const result = await bridgeRequest<{ task_id: string }>(
+      `/ag/starship/tasks/${encodeURIComponent(taskId)}/main-publish`,
+      { method: 'POST' },
+    )
+    await refreshBridgeDb()
+    return withDelay(result)
+  }
+
+  throw new Error('当前环境不支持发布主版本')
+}
 
 const duplicateAgent = (source: InternalAgent, role: StarshipRole, ownerId: string, ownerName: string, groupId?: string | null) => {
   const nextGroupId = groupId ?? source.group_id ?? null
@@ -1350,6 +1483,15 @@ const duplicateAgent = (source: InternalAgent, role: StarshipRole, ownerId: stri
 
 export const forkGroupAgent = async (groupId: string, appId: string): Promise<{ id: string, name: string }> => {
   await ensureDbReady()
+  if (isStarshipBridgeMode()) {
+    const result = await bridgeRequest<{ id: string, name: string }>(
+      `/ag/starship/workspace/${encodeURIComponent(appId)}/fork`,
+      { method: 'POST' },
+    )
+    await refreshBridgeDb()
+    return withDelay(result)
+  }
+
   const source = findAgent(appId)
   const session = currentSession()
   const copied = duplicateAgent(source, session.role, session.user_id, session.user_name, groupId)
@@ -1360,16 +1502,28 @@ export const forkGroupAgent = async (groupId: string, appId: string): Promise<{ 
 
 export const forkAgent = async (appId: string): Promise<{ id: string, name: string }> => {
   await ensureDbReady()
+  if (isStarshipBridgeMode()) {
+    const result = await bridgeRequest<{ id: string, name: string }>(
+      `/ag/starship/workspace/${encodeURIComponent(appId)}/fork`,
+      { method: 'POST' },
+    )
+    await refreshBridgeDb()
+    return withDelay(result)
+  }
+
   const source = findAgent(appId)
   const session = currentSession()
   const copied = duplicateAgent(source, session.role, session.user_id, session.user_name)
   return withDelay({ id: copied.id, name: copied.name })
 }
 
+export const forkStarshipWorkspace = async (appId: string): Promise<{ id: string, name: string }> =>
+  forkAgent(appId)
+
 // ---- Workspace ----
 
 export const fetchStarshipWorkspace = async (appId: string): Promise<StarshipWorkspace> => {
-  await ensureDbReady()
+  await ensureFreshDb()
   const agent = findAgent(appId)
   const session = currentSession()
   const task = findTaskForGroup(agent.group_id)
@@ -1416,6 +1570,18 @@ export const saveStarshipWorkspace = async (appId: string, payload: {
   knowledge_items?: KnowledgeItem[]
 }) => {
   await ensureDbReady()
+  if (isStarshipBridgeMode()) {
+    const result = await bridgeRequest<{ result?: string }>(
+      `/ag/starship/workspace/${encodeURIComponent(appId)}/save`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    )
+    await refreshBridgeDb()
+    return withDelay(result || { result: 'ok' })
+  }
+
   const agent = findAgent(appId)
   agent.name = payload.name
   agent.description = payload.description
@@ -1450,6 +1616,18 @@ export const runStarshipWorkspaceTest = async (
   },
 ): Promise<{ output: string, snapshot_created: boolean }> => {
   await ensureDbReady()
+  if (isStarshipBridgeMode()) {
+    const result = await bridgeRequest<{ output: string, snapshot_created: boolean }>(
+      `/ag/starship/workspace/${encodeURIComponent(appId)}/test`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    )
+    await refreshBridgeDb()
+    return withDelay(result)
+  }
+
   const agent = findAgent(appId)
   const db = getDb()
   if (payload.draft) {
@@ -1483,6 +1661,18 @@ export const publishStarshipWorkspace = async (appId: string, payload: {
   opening_line?: string
 }) => {
   await ensureDbReady()
+  if (isStarshipBridgeMode()) {
+    const result = await bridgeRequest<{ result: string }>(
+      `/ag/starship/workspace/${encodeURIComponent(appId)}/publish`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    )
+    await refreshBridgeDb()
+    return withDelay(result)
+  }
+
   const agent = findAgent(appId)
   const canShare = agent.owner_role === 'coach' || agent.project_kind === 'publish' || agent.project_kind === 'history'
 

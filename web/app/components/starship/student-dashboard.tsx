@@ -178,7 +178,7 @@ const StudentDashboardPage = () => {
                 <ProjectRow
                   key={agent.id}
                   agent={agent}
-                  actionLabel={t('student.openHistoryProject')}
+                  actionLabel={agent.project_kind === 'history' ? '查看课堂记录' : t('student.openHistoryProject')}
                   detail={t('student.historyProjectSource', {
                     group: agent.group_name || t('student.historyProjectsTitle'),
                     task: agent.task_title || t('student.openHistoryProject'),

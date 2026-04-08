@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   fetchStarshipWorkspace,
+  forkStarshipWorkspace,
   runStarshipWorkspaceTest,
   saveStarshipWorkspace,
 } from '@/service/starship'
@@ -64,6 +65,7 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
   const [error, setError] = useState('')
   const [testing, setTesting] = useState(false)
   const [savingCoachDraft, setSavingCoachDraft] = useState(false)
+  const [forking, setForking] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [form, setForm] = useState({
     name: '',
@@ -177,21 +179,25 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
     if (!form.test_input.trim())
       return
 
+    const shouldKeepHistoryReadOnly = workspace?.session.role === 'student' && workspace?.project_kind === 'history'
+
     setTesting(true)
     try {
       const result = await runStarshipWorkspaceTest(appId, {
         input: form.test_input.trim(),
-        draft: {
-          name: form.name,
-          description: form.description,
-          pre_prompt: form.pre_prompt,
-          share_author_name: form.share_author_name,
-          share_intro: form.share_intro,
-          opening_line: form.opening_line,
-          tool_settings: ALWAYS_ON_TOOLS,
-          knowledge_items: knowledgeItems,
-        },
-        persist_snapshot: workspace?.session.role === 'student',
+        draft: shouldKeepHistoryReadOnly
+          ? undefined
+          : {
+              name: form.name,
+              description: form.description,
+              pre_prompt: form.pre_prompt,
+              share_author_name: form.share_author_name,
+              share_intro: form.share_intro,
+              opening_line: form.opening_line,
+              tool_settings: ALWAYS_ON_TOOLS,
+              knowledge_items: knowledgeItems,
+            },
+        persist_snapshot: workspace?.session.role === 'student' && !shouldKeepHistoryReadOnly,
       })
 
       await load()
@@ -224,6 +230,21 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
     }
     finally {
       setSavingCoachDraft(false)
+    }
+  }
+
+  const handleFork = async () => {
+    setForking(true)
+    try {
+      const result = await forkStarshipWorkspace(appId)
+      flash('已经帮你生成自己的继续版，马上带你进入。')
+      window.location.href = `/starship/workspace/${result.id}`
+    }
+    catch (err) {
+      flash(err instanceof Error ? err.message : '继续版本创建失败，请稍后再试。')
+    }
+    finally {
+      setForking(false)
     }
   }
 
@@ -267,7 +288,8 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
 
   const isStudentPublishProject = workspace.session.role === 'student' && workspace.project_kind === 'publish'
   const isStudentHistoryProject = workspace.session.role === 'student' && workspace.project_kind === 'history'
-  const showStudentPublish = workspace.session.role === 'student' && (isStudentPublishProject || isStudentHistoryProject)
+  const readOnlyStudentHistory = isStudentHistoryProject
+  const showStudentPublish = workspace.session.role === 'student' && isStudentPublishProject
   const showCoachMeta = workspace.session.role === 'coach'
   const testSuggestionLabels = QUICK_TEST_SUGGESTION_KEYS.map(key => t(key))
   const badgeLabel = isStudentPublishProject
@@ -485,22 +507,35 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
                 )
               : (
                   <WorkspaceCard
-                    title={workspace.publish_agent ? t('workspace.classroomFinishedTitle') : t('workspace.currentProjectTitle')}
-                    description={workspace.publish_agent ? t('workspace.classroomFinishedDescription') : t('workspace.currentProjectDescription')}
+                    title={(workspace.publish_agent || isStudentHistoryProject) ? t('workspace.classroomFinishedTitle') : t('workspace.currentProjectTitle')}
+                    description={(workspace.publish_agent || isStudentHistoryProject) ? t('workspace.classroomFinishedDescription') : t('workspace.currentProjectDescription')}
                   >
                     <div className="space-y-3">
                       <div className="rounded-[20px] border border-white/8 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
-                        {workspace.publish_agent ? t('workspace.classroomFinishedHint') : t('workspace.autoSaveHint')}
+                        {workspace.publish_agent
+                          ? t('workspace.classroomFinishedHint')
+                          : '老师主版本已经发布。课堂里的这份会保留成记录；如果你还想继续完善，请 fork 一份自己的继续版。'}
                       </div>
 
-                      {workspace.publish_agent && (
-                        <Link
-                          href={`/starship/workspace/${workspace.publish_agent.id}`}
-                          className="inline-flex w-full items-center justify-center rounded-full bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950 hover:bg-sky-300"
-                        >
-                          {t('workspace.openPublishProject')}
-                        </Link>
-                      )}
+                      {workspace.publish_agent
+                        ? (
+                            <Link
+                              href={`/starship/workspace/${workspace.publish_agent.id}`}
+                              className="inline-flex w-full items-center justify-center rounded-full bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950 hover:bg-sky-300"
+                            >
+                              {t('workspace.openPublishProject')}
+                            </Link>
+                          )
+                        : (
+                            <button
+                              type="button"
+                              onClick={handleFork}
+                              disabled={forking}
+                              className="w-full rounded-full bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950 hover:bg-sky-300 disabled:opacity-60"
+                            >
+                              {forking ? t('student.forking') : 'fork 一份我自己的继续版'}
+                            </button>
+                          )}
                     </div>
                   </WorkspaceCard>
                 )
@@ -517,8 +552,9 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
             <textarea
               value={form.pre_prompt}
               onChange={e => updateField('pre_prompt', e.target.value)}
+              readOnly={readOnlyStudentHistory}
               rows={18}
-              className="min-h-[460px] w-full resize-y rounded-[24px] border border-sky-400/20 bg-[#0b1424] px-4 py-4 text-sm leading-7 text-slate-100 outline-none focus:border-sky-300"
+              className={`min-h-[460px] w-full resize-y rounded-[24px] border border-sky-400/20 bg-[#0b1424] px-4 py-4 text-sm leading-7 text-slate-100 outline-none focus:border-sky-300 ${readOnlyStudentHistory ? 'opacity-80' : ''}`}
             />
           </WorkspaceCard>
 
@@ -526,9 +562,9 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
             title={t('workspace.knowledgeTitle')}
             description={t('workspace.knowledgeDescription')}
             action={(
-              <label className="cursor-pointer rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/5">
+              <label className={`rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 ${readOnlyStudentHistory ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-white/5'}`}>
                 {t('workspace.uploadKnowledge')}
-                <input type="file" multiple className="hidden" onChange={handleKnowledgeUpload} />
+                <input type="file" multiple className="hidden" onChange={handleKnowledgeUpload} disabled={readOnlyStudentHistory} />
               </label>
             )}
           >
@@ -548,6 +584,7 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
                       <button
                         type="button"
                         onClick={() => handleRemoveKnowledge(item.id)}
+                        disabled={readOnlyStudentHistory}
                         className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300 hover:bg-white/5"
                       >
                         {t('workspace.removeKnowledge')}

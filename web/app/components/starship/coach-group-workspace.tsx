@@ -52,6 +52,22 @@ const CoachGroupWorkspace = ({ groupId }: CoachGroupWorkspaceProps) => {
     )
   }
 
+  const hasTask = Boolean(currentGroup.task_id)
+  const taskStatusLine = currentGroup.task_main_published
+    ? '这个班的主版本已经发布，孩子们现在可以 fork 自己的继续版。'
+    : currentGroup.task_published_to_students
+      ? '这个班的任务已经发布，孩子们正在个人中心里创作。'
+      : hasTask
+        ? '这个班的任务已经保存，但还没正式发布给孩子。'
+        : '这个班还没有任务，先去创建一个班级任务。'
+
+  const classroomReadyText = currentGroup.task_published_to_students
+    ? t('coach.stats.ready')
+    : '待发布'
+  const mainReadyText = currentGroup.task_main_published
+    ? '已结束'
+    : t('coach.stats.coachOnly')
+
   return (
     <div className="space-y-6">
       <Link
@@ -87,13 +103,17 @@ const CoachGroupWorkspace = ({ groupId }: CoachGroupWorkspaceProps) => {
             </div>
             <div className="rounded-xl border border-divider-subtle bg-background-default-subtle px-4 py-3">
               <div className="text-xs text-text-tertiary">{t('coach.stats.classroom')}</div>
-              <div className="mt-1 text-lg font-semibold text-text-primary">{t('coach.stats.ready')}</div>
+              <div className="mt-1 text-lg font-semibold text-text-primary">{classroomReadyText}</div>
             </div>
             <div className="rounded-xl border border-divider-subtle bg-background-default-subtle px-4 py-3">
               <div className="text-xs text-text-tertiary">{t('coach.stats.main')}</div>
-              <div className="mt-1 text-lg font-semibold text-text-primary">{t('coach.stats.coachOnly')}</div>
+              <div className="mt-1 text-lg font-semibold text-text-primary">{mainReadyText}</div>
             </div>
           </div>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-divider-subtle bg-background-default-subtle px-4 py-4 text-sm leading-6 text-text-secondary">
+          {taskStatusLine}
         </div>
       </section>
 
@@ -137,10 +157,10 @@ const CoachGroupWorkspace = ({ groupId }: CoachGroupWorkspaceProps) => {
             className="rounded-xl border border-divider-subtle bg-background-default-subtle p-4 transition-all hover:border-primary-300 hover:shadow-sm"
           >
             <div className="text-sm font-semibold text-text-primary">
-              {t('coach.openCreateTitle')}
+              班级任务管理
             </div>
             <div className="mt-2 text-sm leading-6 text-text-tertiary">
-              {t('coach.openCreateDescription')}
+              先创建或修改这个班的任务，再决定什么时候正式发布给孩子，什么时候发布主版本结束项目。
             </div>
           </Link>
 

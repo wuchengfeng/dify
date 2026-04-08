@@ -14,7 +14,7 @@ type UseCoachGroupDetailsResult = {
   groupAgents: StarshipAgent[]
   groupPendingVersions: PendingVersion[]
   loading: boolean
-  reload: () => void
+  reload: () => Promise<void>
 }
 
 type UseCoachGroupDetailsOptions = {
@@ -95,8 +95,8 @@ const useCoachGroupDetails = (
     groupAgents,
     groupPendingVersions,
     loading,
-    reload: () => {
-      void load()
+    reload: async () => {
+      await load()
     },
   }
 }
