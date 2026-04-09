@@ -55,8 +55,8 @@ describe('CoachGroupWorkspace', () => {
 
     render(<CoachGroupWorkspace groupId="group-class-30" />)
 
-    expect(screen.getByText('这个班还没有任务，先去创建一个班级任务。')).toBeInTheDocument()
-    const taskManagementLink = screen.getByText('班级任务管理').closest('a')
+    expect(screen.getByText('还没有任务，先点“新建任务”。')).toBeInTheDocument()
+    const taskManagementLink = screen.getByRole('link', { name: '新建任务' })
     expect(taskManagementLink).not.toBeNull()
     expect(taskManagementLink).toHaveAttribute(
       'href',
@@ -78,7 +78,7 @@ describe('CoachGroupWorkspace', () => {
 
     render(<CoachGroupWorkspace groupId="group-class-30" />)
 
-    expect(screen.getByText('这个班的任务已经保存，但还没正式发布给孩子。')).toBeInTheDocument()
+    expect(screen.getByText('任务已经建好，还没发给孩子。')).toBeInTheDocument()
     expect(screen.getByText('待发布')).toBeInTheDocument()
   })
 
@@ -98,7 +98,7 @@ describe('CoachGroupWorkspace', () => {
 
     render(<CoachGroupWorkspace groupId="group-class-30" />)
 
-    expect(screen.getByText('这个班的主版本已经发布，孩子们现在可以 fork 自己的继续版。')).toBeInTheDocument()
+    expect(screen.getByText('主版本已经发布，这个班的项目已经结束。')).toBeInTheDocument()
     expect(screen.getByText('已结束')).toBeInTheDocument()
   })
 })

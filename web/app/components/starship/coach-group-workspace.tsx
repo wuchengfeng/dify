@@ -54,19 +54,28 @@ const CoachGroupWorkspace = ({ groupId }: CoachGroupWorkspaceProps) => {
 
   const hasTask = Boolean(currentGroup.task_id)
   const taskStatusLine = currentGroup.task_main_published
-    ? '这个班的主版本已经发布，孩子们现在可以 fork 自己的继续版。'
+    ? '主版本已经发布，这个班的项目已经结束。'
     : currentGroup.task_published_to_students
-      ? '这个班的任务已经发布，孩子们正在个人中心里创作。'
+      ? '任务已经发给孩子，现在可以去看他们的进度。'
       : hasTask
-        ? '这个班的任务已经保存，但还没正式发布给孩子。'
-        : '这个班还没有任务，先去创建一个班级任务。'
+        ? '任务已经建好，还没发给孩子。'
+        : '还没有任务，先点“新建任务”。'
 
-  const classroomReadyText = currentGroup.task_published_to_students
-    ? t('coach.stats.ready')
-    : '待发布'
-  const mainReadyText = currentGroup.task_main_published
+  const classroomReadyText = currentGroup.task_main_published
     ? '已结束'
-    : t('coach.stats.coachOnly')
+    : currentGroup.task_published_to_students
+      ? '进行中'
+      : hasTask
+        ? '待发布'
+        : '未开始'
+  const mainReadyText = currentGroup.task_main_published
+    ? '已发布'
+    : '未发布'
+  const taskActionLabel = currentGroup.task_main_published
+    ? '查看任务'
+    : hasTask
+      ? '管理任务'
+      : '新建任务'
 
   return (
     <div className="space-y-6">
@@ -115,28 +124,58 @@ const CoachGroupWorkspace = ({ groupId }: CoachGroupWorkspaceProps) => {
         <div className="mt-4 rounded-xl border border-divider-subtle bg-background-default-subtle px-4 py-4 text-sm leading-6 text-text-secondary">
           {taskStatusLine}
         </div>
+
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            href={`/starship/create?groupId=${groupId}`}
+            className="inline-flex items-center justify-center rounded-xl bg-sky-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-300"
+          >
+            {taskActionLabel}
+          </Link>
+          <Link
+            href={`/starship/coach/${groupId}/classroom`}
+            className="inline-flex items-center justify-center rounded-xl border border-divider-subtle px-5 py-3 text-sm font-medium text-text-primary transition hover:bg-background-default-subtle"
+          >
+            看孩子进度
+          </Link>
+          <Link
+            href={`/starship/coach/${groupId}/reviews`}
+            className="inline-flex items-center justify-center rounded-xl border border-divider-subtle px-5 py-3 text-sm font-medium text-text-primary transition hover:bg-background-default-subtle"
+          >
+            看审核
+          </Link>
+        </div>
       </section>
 
       <section className="rounded-2xl border border-divider-subtle bg-background-default p-5">
         <div>
           <h2 className="text-lg font-semibold text-text-primary">
-            {t('coach.quickActionsTitle')}
+            现在就做
           </h2>
-          <p className="mt-1 text-sm leading-6 text-text-tertiary">
-            {t('coach.quickActionsDescription')}
-          </p>
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <Link
+            href={`/starship/create?groupId=${groupId}`}
+            className="rounded-xl border border-divider-subtle bg-background-default-subtle p-4 transition-all hover:border-primary-300 hover:shadow-sm"
+          >
+            <div className="text-sm font-semibold text-text-primary">
+              班级任务
+            </div>
+            <div className="mt-2 text-sm leading-6 text-text-tertiary">
+              新建、修改、发布这个班的任务。
+            </div>
+          </Link>
+
           <Link
             href={`/starship/coach/${groupId}/classroom`}
             className="rounded-xl border border-divider-subtle bg-background-default-subtle p-4 transition-all hover:border-primary-300 hover:shadow-sm"
           >
             <div className="text-sm font-semibold text-text-primary">
-              {t('coach.openClassroomTitle')}
+              课堂进度
             </div>
             <div className="mt-2 text-sm leading-6 text-text-tertiary">
-              {t('coach.openClassroomDescription')}
+              看孩子现在做到哪一步，也可以现场测试。
             </div>
           </Link>
 
@@ -145,25 +184,12 @@ const CoachGroupWorkspace = ({ groupId }: CoachGroupWorkspaceProps) => {
             className="rounded-xl border border-divider-subtle bg-background-default-subtle p-4 transition-all hover:border-primary-300 hover:shadow-sm"
           >
             <div className="text-sm font-semibold text-text-primary">
-              {t('coach.openReviewsTitle')}
+              小组审核
             </div>
             <div className="mt-2 text-sm leading-6 text-text-tertiary">
-              {t('coach.openReviewsDescription')}
+              只看这个班交上来的版本。
             </div>
           </Link>
-
-          <Link
-            href={`/starship/create?groupId=${groupId}`}
-            className="rounded-xl border border-divider-subtle bg-background-default-subtle p-4 transition-all hover:border-primary-300 hover:shadow-sm"
-          >
-            <div className="text-sm font-semibold text-text-primary">
-              班级任务管理
-            </div>
-            <div className="mt-2 text-sm leading-6 text-text-tertiary">
-              先创建或修改这个班的任务，再决定什么时候正式发布给孩子，什么时候发布主版本结束项目。
-            </div>
-          </Link>
-
         </div>
       </section>
 
@@ -172,10 +198,10 @@ const CoachGroupWorkspace = ({ groupId }: CoachGroupWorkspaceProps) => {
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold text-text-primary">
-                {t('coach.groupProjectsTitle')}
+                这个班现在的项目
               </h2>
               <p className="mt-1 text-sm leading-6 text-text-tertiary">
-                {t('coach.groupProjectsDescription')}
+                任务发布以后，这里会开始出现孩子们正在做的项目。
               </p>
             </div>
             {!!groupAgents.length && (
@@ -192,7 +218,7 @@ const CoachGroupWorkspace = ({ groupId }: CoachGroupWorkspaceProps) => {
             {!groupAgents.length
               ? (
                   <div className="flex min-h-40 items-center justify-center rounded-xl border border-dashed border-divider-subtle bg-background-default-subtle px-4 text-center text-sm text-text-tertiary">
-                    {t('coach.groupProjectsEmpty')}
+                    先建任务并发布，孩子的项目才会出现在这里。
                   </div>
                 )
               : (
@@ -209,19 +235,19 @@ const CoachGroupWorkspace = ({ groupId }: CoachGroupWorkspaceProps) => {
           <div className="space-y-3">
             <div>
               <h2 className="text-lg font-semibold text-text-primary">
-                {t('coach.classroomShellTitle')}
+                孩子当前进度
               </h2>
               <p className="mt-1 text-sm leading-6 text-text-tertiary">
-                {t('coach.classroomShellDescription')}
+                任务发出去以后，这里会显示这个班孩子的实时进度。
               </p>
             </div>
 
             <div className="rounded-xl border border-dashed border-divider-subtle bg-background-default-subtle p-4">
               <div className="text-sm font-medium text-text-primary">
-                {t('coach.mainRuleTitle')}
+                项目结束规则
               </div>
               <div className="mt-2 text-sm leading-6 text-text-tertiary">
-                {t('coach.mainRuleDescription')}
+                只有教练发布主版本后，这个项目才算结束，孩子才能 fork 自己的继续版。
               </div>
             </div>
           </div>
@@ -232,10 +258,10 @@ const CoachGroupWorkspace = ({ groupId }: CoachGroupWorkspaceProps) => {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold text-text-primary">
-              {t('coach.groupReviewsTitle')}
+              这个班的审核
             </h2>
             <p className="mt-1 text-sm leading-6 text-text-tertiary">
-              {t('coach.groupReviewsDescription')}
+              看这个班提交上来的版本，不会混进别的班。
             </p>
           </div>
           {!!groupPendingVersions.length && (
