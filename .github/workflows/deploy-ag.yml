@@ -1,13 +1,6 @@
 name: Deploy AG Starship
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'api/**'
-      - 'docker/**'
-      - 'web/**'
-      - '.github/workflows/deploy-ag.yml'
   workflow_dispatch:
 
 jobs:
