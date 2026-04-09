@@ -237,11 +237,11 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
     setForking(true)
     try {
       const result = await forkStarshipWorkspace(appId)
-      flash('已经帮你生成自己的继续版，马上带你进入。')
+      flash('已经帮你准备好自己的继续作品，马上带你进入。')
       window.location.href = `/starship/workspace/${result.id}`
     }
     catch (err) {
-      flash(err instanceof Error ? err.message : '继续版本创建失败，请稍后再试。')
+      flash(err instanceof Error ? err.message : '继续作品创建失败，请稍后再试。')
     }
     finally {
       setForking(false)
@@ -288,8 +288,10 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
 
   const isStudentPublishProject = workspace.session.role === 'student' && workspace.project_kind === 'publish'
   const isStudentHistoryProject = workspace.session.role === 'student' && workspace.project_kind === 'history'
+  const isStudentCurrentClassroomProject = workspace.session.role === 'student' && workspace.project_kind === 'classroom'
   const readOnlyStudentHistory = isStudentHistoryProject
   const showStudentPublish = workspace.session.role === 'student' && isStudentPublishProject
+  const showStudentFinishedClassroom = workspace.session.role === 'student' && isStudentHistoryProject
   const showCoachMeta = workspace.session.role === 'coach'
   const testSuggestionLabels = QUICK_TEST_SUGGESTION_KEYS.map(key => t(key))
   const badgeLabel = isStudentPublishProject
@@ -505,40 +507,53 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
                     </div>
                   </WorkspaceCard>
                 )
-              : (
-                  <WorkspaceCard
-                    title={(workspace.publish_agent || isStudentHistoryProject) ? t('workspace.classroomFinishedTitle') : t('workspace.currentProjectTitle')}
-                    description={(workspace.publish_agent || isStudentHistoryProject) ? t('workspace.classroomFinishedDescription') : t('workspace.currentProjectDescription')}
-                  >
-                    <div className="space-y-3">
-                      <div className="rounded-[20px] border border-white/8 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
-                        {workspace.publish_agent
-                          ? t('workspace.classroomFinishedHint')
-                          : '老师主版本已经发布。课堂里的这份会保留成记录；如果你还想继续完善，请 fork 一份自己的继续版。'}
-                      </div>
+              : showStudentFinishedClassroom
+                  ? (
+                      <WorkspaceCard
+                        title={t('workspace.classroomFinishedTitle')}
+                        description={t('workspace.classroomFinishedDescription')}
+                      >
+                        <div className="space-y-3">
+                          <div className="rounded-[20px] border border-white/8 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
+                            {workspace.publish_agent
+                              ? t('workspace.classroomFinishedHint')
+                              : '老师主版本已经确认。课堂里的这份会保留成记录；如果你还想继续完善，我可以先帮你准备一份自己的继续作品。'}
+                          </div>
 
-                      {workspace.publish_agent
-                        ? (
-                            <Link
-                              href={`/starship/workspace/${workspace.publish_agent.id}`}
-                              className="inline-flex w-full items-center justify-center rounded-full bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950 hover:bg-sky-300"
-                            >
-                              {t('workspace.openPublishProject')}
-                            </Link>
-                          )
-                        : (
-                            <button
-                              type="button"
-                              onClick={handleFork}
-                              disabled={forking}
-                              className="w-full rounded-full bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950 hover:bg-sky-300 disabled:opacity-60"
-                            >
-                              {forking ? t('student.forking') : 'fork 一份我自己的继续版'}
-                            </button>
-                          )}
-                    </div>
-                  </WorkspaceCard>
-                )
+                          {workspace.publish_agent
+                            ? (
+                                <Link
+                                  href={`/starship/workspace/${workspace.publish_agent.id}`}
+                                  className="inline-flex w-full items-center justify-center rounded-full bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950 hover:bg-sky-300"
+                                >
+                                  {t('workspace.openPublishProject')}
+                                </Link>
+                              )
+                            : (
+                                <button
+                                  type="button"
+                                  onClick={handleFork}
+                                  disabled={forking}
+                                  className="w-full rounded-full bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950 hover:bg-sky-300 disabled:opacity-60"
+                                >
+                                  {forking ? t('student.forking') : '生成我的继续作品'}
+                                </button>
+                              )}
+                        </div>
+                      </WorkspaceCard>
+                    )
+                  : isStudentCurrentClassroomProject
+                      ? (
+                          <WorkspaceCard
+                            title={t('workspace.currentProjectTitle')}
+                            description={t('workspace.currentProjectDescription')}
+                          >
+                            <div className="rounded-[20px] border border-white/8 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
+                              这节课先把想法写好、测试好。项目结束后，再继续做你自己的作品。
+                            </div>
+                          </WorkspaceCard>
+                        )
+                      : null
           )}
 
         </aside>

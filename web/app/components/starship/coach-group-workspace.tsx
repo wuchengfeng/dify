@@ -247,7 +247,7 @@ const CoachGroupWorkspace = ({ groupId }: CoachGroupWorkspaceProps) => {
                 项目结束规则
               </div>
               <div className="mt-2 text-sm leading-6 text-text-tertiary">
-                只有教练发布主版本后，这个项目才算结束，孩子才能 fork 自己的继续版。
+                只有教练确认主版本后，这个项目才算结束，孩子才能开始自己的继续作品。
               </div>
             </div>
           </div>
