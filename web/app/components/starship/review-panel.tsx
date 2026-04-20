@@ -41,7 +41,7 @@ const ReviewPanel = ({ version, onDone }: Props) => {
             {version.version_number}
           </div>
         </div>
-        {version.submitted_at && (
+        {version.submitted_at != null && (
           <div className="shrink-0 text-xs text-text-quaternary">
             {new Date(version.submitted_at * 1000).toLocaleString()}
           </div>

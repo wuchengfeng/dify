@@ -30,7 +30,7 @@ const StarshipNav = ({ className }: StarshipNavProps) => {
         ? <span className="i-ri-rocket-fill h-4 w-4" />
         : <span className="i-ri-rocket-line h-4 w-4" />}
       <div className="ml-2 max-[1024px]:hidden">
-        {t('nav', { ns: 'starship' })}
+        {t('nav.title', { ns: 'starship' })}
       </div>
     </Link>
   )

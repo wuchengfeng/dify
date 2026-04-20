@@ -9,8 +9,8 @@ vi.mock('@/app/components/starship/coach-group-workspace', () => ({
 
 describe('CoachGroupPage', () => {
   it('opens the coach group in workspace mode by default', async () => {
-    const module = await import('./page')
-    const Page = module.default
+    const pageModule = await import('./page')
+    const Page = pageModule.default
 
     const element = await Page({
       params: Promise.resolve({

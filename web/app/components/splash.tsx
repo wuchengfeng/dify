@@ -1,7 +1,7 @@
 'use client'
 import type { FC, PropsWithChildren } from 'react'
-import * as React from 'react'
 import { usePathname } from 'next/navigation'
+import * as React from 'react'
 import { useIsLogin } from '@/service/use-common'
 import { isStarshipBridgeRequest } from '@/utils/starship-bridge'
 import Loading from './base/loading'

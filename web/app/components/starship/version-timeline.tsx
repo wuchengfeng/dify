@@ -64,7 +64,7 @@ const VersionTimeline = ({ appId }: Props) => {
                     </span>
                   </div>
 
-                  {v.submitted_at && (
+                  {v.submitted_at != null && (
                     <div className="mt-1 text-xs text-text-tertiary">
                       {t('versions.submittedAt')}
                       :

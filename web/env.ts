@@ -16,6 +16,10 @@ const coercedNumber = z.coerce.number().int().positive()
 /// keep-sorted
 const clientSchema = {
   /**
+   * The AG backend API base for starship bridge.
+   */
+  NEXT_PUBLIC_AG_API_BASE: z.string().optional(),
+  /**
    * Default is not allow to embed into iframe to prevent Clickjacking: https://owasp.org/www-community/attacks/Clickjacking
    */
   NEXT_PUBLIC_ALLOW_EMBED: coercedBoolean.default(false),
@@ -27,10 +31,6 @@ const clientSchema = {
    * The API key of amplitude
    */
   NEXT_PUBLIC_AMPLITUDE_API_KEY: z.string().optional(),
-  /**
-   * The AG backend API base for starship bridge.
-   */
-  NEXT_PUBLIC_AG_API_BASE: z.string().optional(),
   /**
    * The base URL of console application, refers to the Console base URL of WEB service if console domain is
    * different from api or web app domain.
