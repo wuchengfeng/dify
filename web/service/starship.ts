@@ -858,7 +858,9 @@ const bridgeMutationPath = (path: string, bridgeToken: string) =>
   `${AG_API_BASE.replace(/\/$/, '')}${path}${path.includes('?') ? '&' : '?'}bridge_token=${encodeURIComponent(bridgeToken)}`
 
 const fetchBridgeBootstrap = async (bridgeToken: string): Promise<MockDb> => {
-  const response = await fetch(bridgeBootstrapPath(bridgeToken))
+  const response = await fetch(`${bridgeBootstrapPath(bridgeToken)}&_=${Date.now()}`, {
+    cache: 'no-store',
+  })
   const payload = await response.json().catch(() => ({})) as StarshipApiResponse<MockDb>
   if (!response.ok || !payload.success || !payload.data)
     throw new Error(payload.message || '无法载入 AG 星舰空间')

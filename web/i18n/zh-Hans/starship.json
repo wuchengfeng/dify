@@ -308,7 +308,7 @@
   "workspace.currentBadge": "当前项目",
   "workspace.historyBadge": "历史项目",
   "workspace.historyDescription": "这是历史项目，你可以继续修改，也可以准备发布。",
-  "workspace.autoSaveHint": "不用手动保存。只要你去测试，系统就会自动记下新的版本。",
+  "workspace.autoSaveHint": "输入后会自动保存；去测试时，系统还会自动记下一版。",
   "workspace.coachEditHint": "老师版本可以先整理思路，再决定要不要回到课堂里继续合并同学们的想法。",
   "workspace.toolsTitle": "工具开关",
   "workspace.toolsDescription": "给你的智能体打开一些能力，看看它会不会更好用。",

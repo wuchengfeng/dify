@@ -3,7 +3,7 @@
 import type { ChangeEvent, ReactNode } from 'react'
 import type { KnowledgeItem, StarshipWorkspace } from '@/service/starship'
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   fetchStarshipWorkspace,
@@ -28,6 +28,48 @@ const QUICK_TEST_SUGGESTION_KEYS = [
   'workspace.quickTestTwo',
   'workspace.quickTestThree',
 ] as const
+
+const STUDENT_AUTOSAVE_DELAY_MS = 1000
+
+type WorkspaceFormState = {
+  name: string
+  description: string
+  pre_prompt: string
+  share_author_name: string
+  share_intro: string
+  opening_line: string
+  test_input: string
+}
+
+type StudentWorkspaceDraft = Omit<WorkspaceFormState, 'test_input'> & {
+  knowledge_items: KnowledgeItem[]
+}
+
+const buildStudentWorkspaceDraft = (
+  form: WorkspaceFormState,
+  knowledgeItems: KnowledgeItem[],
+): StudentWorkspaceDraft => ({
+  name: form.name,
+  description: form.description,
+  pre_prompt: form.pre_prompt,
+  share_author_name: form.share_author_name,
+  share_intro: form.share_intro,
+  opening_line: form.opening_line,
+  knowledge_items: knowledgeItems,
+})
+
+const buildStudentWorkspaceDraftFromWorkspace = (workspace: StarshipWorkspace): StudentWorkspaceDraft => ({
+  name: workspace.agent.name,
+  description: workspace.agent.description,
+  pre_prompt: workspace.pre_prompt,
+  share_author_name: workspace.share_author_name,
+  share_intro: workspace.share_intro,
+  opening_line: workspace.opening_line,
+  knowledge_items: workspace.knowledge_items,
+})
+
+const serializeStudentWorkspaceDraft = (draft: StudentWorkspaceDraft) =>
+  JSON.stringify(draft)
 
 type WorkspaceCardProps = {
   title: string
@@ -59,15 +101,17 @@ const WorkspaceCard = ({ title, description, action, children, className = '' }:
 )
 
 const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
-  const { t } = useTranslation(['starship', 'common'])
+  const { t } = useTranslation('starship')
   const [workspace, setWorkspace] = useState<StarshipWorkspace | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [testing, setTesting] = useState(false)
   const [savingCoachDraft, setSavingCoachDraft] = useState(false)
+  const [studentDraftStatus, setStudentDraftStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [savedStudentDraftKey, setSavedStudentDraftKey] = useState('')
   const [forking, setForking] = useState(false)
   const [feedback, setFeedback] = useState('')
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<WorkspaceFormState>({
     name: '',
     description: '',
     pre_prompt: '',
@@ -77,6 +121,7 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
     test_input: '',
   })
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItem[]>([])
+  const studentAutosaveRequestIdRef = useRef(0)
 
   const flash = useCallback((message: string) => {
     setFeedback(message)
@@ -121,6 +166,7 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
     setLoading(true)
     try {
       const result = await fetchStarshipWorkspace(appId)
+      const loadedDraftKey = serializeStudentWorkspaceDraft(buildStudentWorkspaceDraftFromWorkspace(result))
       setWorkspace(result)
       setForm({
         name: result.agent.name,
@@ -132,6 +178,9 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
         test_input: '',
       })
       setKnowledgeItems(result.knowledge_items)
+      setSavedStudentDraftKey(loadedDraftKey)
+      setStudentDraftStatus('idle')
+      studentAutosaveRequestIdRef.current = 0
     }
     catch (err) {
       setError(err instanceof Error ? err.message : t('workspace.noTaskDescription'))
@@ -145,6 +194,65 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
   useEffect(() => {
     void load()
   }, [load])
+
+  const canAutosaveStudentDraft = workspace?.session.role === 'student' && workspace.project_kind !== 'history'
+  const currentStudentDraftKey = canAutosaveStudentDraft
+    ? serializeStudentWorkspaceDraft(buildStudentWorkspaceDraft(form, knowledgeItems))
+    : ''
+
+  const persistStudentDraft = useEffectEvent(async (draft: StudentWorkspaceDraft, draftKey: string, requestId: number) => {
+    setStudentDraftStatus('saving')
+    try {
+      await saveStarshipWorkspace(appId, {
+        ...draft,
+        tool_settings: ALWAYS_ON_TOOLS,
+      })
+
+      if (requestId !== studentAutosaveRequestIdRef.current)
+        return
+
+      setSavedStudentDraftKey(draftKey)
+      setStudentDraftStatus('saved')
+      setWorkspace(prev => prev
+        ? {
+            ...prev,
+            agent: {
+              ...prev.agent,
+              name: draft.name,
+              description: draft.description,
+              pre_prompt: draft.pre_prompt,
+              updated_at: Math.floor(Date.now() / 1000),
+            },
+            pre_prompt: draft.pre_prompt,
+            share_author_name: draft.share_author_name,
+            share_intro: draft.share_intro,
+            opening_line: draft.opening_line,
+            knowledge_items: draft.knowledge_items,
+          }
+        : prev)
+    }
+    catch (err) {
+      if (requestId !== studentAutosaveRequestIdRef.current)
+        return
+
+      setStudentDraftStatus('idle')
+      flash(err instanceof Error ? err.message : '自动保存失败，请稍后再试。')
+    }
+  })
+
+  useEffect(() => {
+    if (!canAutosaveStudentDraft || !savedStudentDraftKey || currentStudentDraftKey === savedStudentDraftKey)
+      return
+
+    const draft = buildStudentWorkspaceDraft(form, knowledgeItems)
+    const requestId = studentAutosaveRequestIdRef.current + 1
+    const timer = window.setTimeout(() => {
+      studentAutosaveRequestIdRef.current = requestId
+      void persistStudentDraft(draft, currentStudentDraftKey, requestId)
+    }, STUDENT_AUTOSAVE_DELAY_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [canAutosaveStudentDraft, currentStudentDraftKey, form, knowledgeItems, savedStudentDraftKey])
 
   const homeHref = workspace?.session.role === 'coach'
     ? (workspace.group ? `/starship/coach/${workspace.group.id}` : '/starship/coach')
@@ -294,6 +402,11 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
   const showStudentFinishedClassroom = workspace.session.role === 'student' && isStudentHistoryProject
   const showCoachMeta = workspace.session.role === 'coach'
   const testSuggestionLabels = QUICK_TEST_SUGGESTION_KEYS.map(key => t(key))
+  const studentDraftStatusLabel = studentDraftStatus === 'saving'
+    ? t('workspace.saving')
+    : studentDraftStatus === 'saved'
+      ? t('workspace.saved')
+      : ''
   const badgeLabel = isStudentPublishProject
     ? t('workspace.publishProjectBadge')
     : workspace.is_history_project
@@ -508,52 +621,52 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
                   </WorkspaceCard>
                 )
               : showStudentFinishedClassroom
+                ? (
+                    <WorkspaceCard
+                      title={t('workspace.classroomFinishedTitle')}
+                      description={t('workspace.classroomFinishedDescription')}
+                    >
+                      <div className="space-y-3">
+                        <div className="rounded-[20px] border border-white/8 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
+                          {workspace.publish_agent
+                            ? t('workspace.classroomFinishedHint')
+                            : '老师主版本已经确认。课堂里的这份会保留成记录；如果你还想继续完善，我可以先帮你准备一份自己的继续作品。'}
+                        </div>
+
+                        {workspace.publish_agent
+                          ? (
+                              <Link
+                                href={`/starship/workspace/${workspace.publish_agent.id}`}
+                                className="inline-flex w-full items-center justify-center rounded-full bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950 hover:bg-sky-300"
+                              >
+                                {t('workspace.openPublishProject')}
+                              </Link>
+                            )
+                          : (
+                              <button
+                                type="button"
+                                onClick={handleFork}
+                                disabled={forking}
+                                className="w-full rounded-full bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950 hover:bg-sky-300 disabled:opacity-60"
+                              >
+                                {forking ? t('student.forking') : '生成我的继续作品'}
+                              </button>
+                            )}
+                      </div>
+                    </WorkspaceCard>
+                  )
+                : isStudentCurrentClassroomProject
                   ? (
                       <WorkspaceCard
-                        title={t('workspace.classroomFinishedTitle')}
-                        description={t('workspace.classroomFinishedDescription')}
+                        title={t('workspace.currentProjectTitle')}
+                        description={t('workspace.currentProjectDescription')}
                       >
-                        <div className="space-y-3">
-                          <div className="rounded-[20px] border border-white/8 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
-                            {workspace.publish_agent
-                              ? t('workspace.classroomFinishedHint')
-                              : '老师主版本已经确认。课堂里的这份会保留成记录；如果你还想继续完善，我可以先帮你准备一份自己的继续作品。'}
-                          </div>
-
-                          {workspace.publish_agent
-                            ? (
-                                <Link
-                                  href={`/starship/workspace/${workspace.publish_agent.id}`}
-                                  className="inline-flex w-full items-center justify-center rounded-full bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950 hover:bg-sky-300"
-                                >
-                                  {t('workspace.openPublishProject')}
-                                </Link>
-                              )
-                            : (
-                                <button
-                                  type="button"
-                                  onClick={handleFork}
-                                  disabled={forking}
-                                  className="w-full rounded-full bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950 hover:bg-sky-300 disabled:opacity-60"
-                                >
-                                  {forking ? t('student.forking') : '生成我的继续作品'}
-                                </button>
-                              )}
+                        <div className="rounded-[20px] border border-white/8 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
+                          这节课先把想法写好、测试好。项目结束后，再继续做你自己的作品。
                         </div>
                       </WorkspaceCard>
                     )
-                  : isStudentCurrentClassroomProject
-                      ? (
-                          <WorkspaceCard
-                            title={t('workspace.currentProjectTitle')}
-                            description={t('workspace.currentProjectDescription')}
-                          >
-                            <div className="rounded-[20px] border border-white/8 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
-                              这节课先把想法写好、测试好。项目结束后，再继续做你自己的作品。
-                            </div>
-                          </WorkspaceCard>
-                        )
-                      : null
+                  : null
           )}
 
         </aside>
@@ -562,6 +675,13 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
           <WorkspaceCard
             title={t('workspace.promptTitle')}
             description={workspace.session.role === 'student' ? t('workspace.autoSaveHint') : t('workspace.coachEditHint')}
+            action={canAutosaveStudentDraft && studentDraftStatusLabel
+              ? (
+                  <span className="text-xs font-medium text-sky-200">
+                    {studentDraftStatusLabel}
+                  </span>
+                )
+              : undefined}
             className="border-sky-400/20 bg-[#12203a]"
           >
             <textarea

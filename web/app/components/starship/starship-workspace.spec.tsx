@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createReactI18nextMock } from '@/test/i18n-mock'
 import StarshipWorkspacePage from './starship-workspace'
 
 const mockFetchStarshipWorkspace = vi.fn()
+const mockSaveStarshipWorkspace = vi.fn()
 
 vi.mock('react-i18next', () =>
   createReactI18nextMock({
@@ -50,7 +51,7 @@ vi.mock('@/service/starship', () => ({
   fetchStarshipWorkspace: (...args: unknown[]) => mockFetchStarshipWorkspace(...args),
   forkStarshipWorkspace: vi.fn(),
   runStarshipWorkspaceTest: vi.fn(),
-  saveStarshipWorkspace: vi.fn(),
+  saveStarshipWorkspace: (...args: unknown[]) => mockSaveStarshipWorkspace(...args),
 }))
 
 vi.mock('./use-browser-voice-input', () => ({
@@ -117,6 +118,15 @@ const baseWorkspace = {
 }
 
 describe('StarshipWorkspacePage', () => {
+  beforeEach(() => {
+    mockFetchStarshipWorkspace.mockReset()
+    mockSaveStarshipWorkspace.mockReset()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('keeps current classroom projects in test-only mode before main publish', async () => {
     mockFetchStarshipWorkspace.mockResolvedValue({
       ...baseWorkspace,
@@ -155,5 +165,56 @@ describe('StarshipWorkspacePage', () => {
     expect(screen.getByText('老师主版本已经确认。课堂里的这份会保留成记录；如果你还想继续完善，我可以先帮你准备一份自己的继续作品。')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '生成我的继续作品' })).toBeInTheDocument()
     expect(screen.queryByText(/fork/i)).not.toBeInTheDocument()
+  })
+
+  it('autosaves student prompt edits without waiting for a manual test run', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    mockFetchStarshipWorkspace.mockResolvedValue({
+      ...baseWorkspace,
+      is_history_project: false,
+      project_kind: 'classroom',
+      publish_agent: null,
+    })
+    mockSaveStarshipWorkspace.mockResolvedValue({ result: 'ok' })
+
+    render(<StarshipWorkspacePage appId="classroom-1" />)
+
+    const promptField = await screen.findByDisplayValue('你好')
+    act(() => {
+      fireEvent.change(promptField, { target: { value: '你好，新提示词' } })
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    await waitFor(() => {
+      expect(mockSaveStarshipWorkspace).toHaveBeenCalledWith('classroom-1', expect.objectContaining({
+        pre_prompt: '你好，新提示词',
+      }))
+    })
+  })
+
+  it('does not autosave history projects that are read-only for students', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    mockFetchStarshipWorkspace.mockResolvedValue({
+      ...baseWorkspace,
+      is_history_project: true,
+      project_kind: 'history',
+      publish_agent: null,
+    })
+    mockSaveStarshipWorkspace.mockResolvedValue({ result: 'ok' })
+
+    render(<StarshipWorkspacePage appId="classroom-1" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('课堂项目已经结束')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    expect(mockSaveStarshipWorkspace).not.toHaveBeenCalled()
   })
 })
