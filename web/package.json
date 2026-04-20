@@ -40,7 +40,7 @@
     "lint": "eslint --cache --concurrency=auto",
     "lint:ci": "eslint --cache --concurrency 2",
     "lint:fix": "pnpm lint --fix",
-    "lint:quiet": "pnpm lint --quiet",
+    "lint:quiet": "pnpm lint --quiet --pass-on-unpruned-suppressions",
     "lint:tss": "tsslint --project tsconfig.json",
     "preinstall": "npx only-allow pnpm",
     "prepare": "cd ../ && node -e \"if (process.env.NODE_ENV !== 'production'){process.exit(1)} \" || husky ./web/.husky",
