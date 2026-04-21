@@ -10,6 +10,7 @@ from flask import request
 from flask_restx import Resource
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, func, select
+from sqlalchemy.orm import Session
 from werkzeug.exceptions import Forbidden, NotFound
 
 from controllers.console import console_ns
@@ -33,7 +34,7 @@ from models.starship import (
     StarshipMember,
     StarshipRole,
 )
-from services.app_dsl_service import AppDslService
+from services.app_dsl_service import AppDslService, ImportMode, ImportStatus
 from services.app_service import AppService
 
 # ---------------------------------------------------------------------------
@@ -102,7 +103,7 @@ class StarshipMemberListApi(Resource):
                 {
                     "id": str(m.id),
                     "account_id": str(m.account_id),
-                    "name": accounts.get(str(m.account_id), Account()).name if str(m.account_id) in accounts else None,
+                    "name": accounts[str(m.account_id)].name if str(m.account_id) in accounts else None,
                     "email": accounts[str(m.account_id)].email if str(m.account_id) in accounts else None,
                     "role": m.role,
                 }
@@ -268,11 +269,14 @@ class StarshipAgentSubmitApi(Resource):
         ).scalar_one() or 0
 
         # Snapshot current agent config
+        agent_mode_snapshot: dict[str, object] = (
+            dict(app.app_model_config.agent_mode_dict) if app.app_model_config else {}
+        )
         snapshot: dict = {
             "name": app.name,
             "description": app.description,
             "pre_prompt": app.app_model_config.pre_prompt if app.app_model_config else "",
-            "agent_mode": app.app_model_config.agent_mode_dict if app.app_model_config else {},
+            "agent_mode": agent_mode_snapshot,
         }
 
         version = StarshipAgentVersion(
@@ -597,7 +601,6 @@ class StarshipGroupAgentListApi(Resource):
     @login_required
     @account_initialization_required
     def get(self, group_id: str):
-        current_user, _ = current_account_with_tenant()
         agent_links = db.session.execute(
             select(StarshipGroupAgent).where(StarshipGroupAgent.group_id == group_id)
         ).scalars().all()
@@ -614,7 +617,6 @@ class StarshipGroupAgentListApi(Resource):
     @login_required
     @account_initialization_required
     def post(self, group_id: str):
-        current_user, _ = current_account_with_tenant()
         data = request.get_json()
         app_id = data.get("app_id")
         if not app_id:
@@ -642,16 +644,27 @@ class StarshipGroupForkApi(Resource):
 
         # Reuse Dify's DSL export/import to fork
         dsl = AppDslService.export_dsl(source_app, include_secret=False)
-        new_app = AppDslService.import_app(
-            tenant_id=tenant_id,
-            app_data=dsl,
-            args={
-                "name": f"{source_app.name} (Fork)",
-                "description": source_app.description,
-                "icon_type": source_app.icon_type or "emoji",
-                "icon": source_app.icon,
-                "icon_background": source_app.icon_background,
-            },
-            account=current_user,
-        )
-        return {"id": str(new_app.id), "name": new_app.name}, 201
+        with Session(db.engine) as session:
+            import_service = AppDslService(session)
+            result = import_service.import_app(
+                account=current_user,
+                import_mode=ImportMode.YAML_CONTENT,
+                yaml_content=dsl,
+                name=f"{source_app.name} (Fork)",
+                description=source_app.description,
+                icon_type=source_app.icon_type or "emoji",
+                icon=source_app.icon,
+                icon_background=source_app.icon_background,
+            )
+            if result.status == ImportStatus.FAILED or not result.app_id:
+                return {"error": result.error or "fork failed"}, 400
+
+            new_app = session.scalar(select(App).where(App.id == result.app_id))
+            if new_app is None:
+                return {"error": "forked app not found"}, 500
+
+            new_app_id = str(new_app.id)
+            new_app_name = new_app.name
+            session.commit()
+
+        return {"id": new_app_id, "name": new_app_name}, 201

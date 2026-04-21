@@ -14,3 +14,5 @@ starship_public_ns = Namespace("starship_public", description="Public Starship A
 api.add_namespace(starship_public_ns)
 
 from . import square
+
+REGISTERED_ROUTE_MODULES = (square,)
