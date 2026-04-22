@@ -284,12 +284,10 @@ class PluginUploadFromPkgApi(Resource):
         _, tenant_id = current_account_with_tenant()
 
         file = request.files["pkg"]
-
-        # check file size
-        if file.content_length > dify_config.PLUGIN_MAX_PACKAGE_SIZE:
-            raise ValueError("File size exceeds the maximum allowed size")
-
         content = file.read()
+        content_length = file.content_length or len(content)
+        if content_length > dify_config.PLUGIN_MAX_PACKAGE_SIZE:
+            raise ValueError("File size exceeds the maximum allowed size")
         try:
             response = PluginService.upload_pkg(tenant_id, content)
         except PluginDaemonClientSideError as e:
@@ -328,12 +326,10 @@ class PluginUploadFromBundleApi(Resource):
         _, tenant_id = current_account_with_tenant()
 
         file = request.files["bundle"]
-
-        # check file size
-        if file.content_length > dify_config.PLUGIN_MAX_BUNDLE_SIZE:
-            raise ValueError("File size exceeds the maximum allowed size")
-
         content = file.read()
+        content_length = file.content_length or len(content)
+        if content_length > dify_config.PLUGIN_MAX_BUNDLE_SIZE:
+            raise ValueError("File size exceeds the maximum allowed size")
         try:
             response = PluginService.upload_bundle(tenant_id, content)
         except PluginDaemonClientSideError as e:

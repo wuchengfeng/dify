@@ -18,7 +18,7 @@ from dify_graph.enums import NodeType
 from dify_graph.nodes.http_request import HTTP_REQUEST_CONFIG_FILTER_KEY, HttpRequestNode, HttpRequestNodeConfig
 from libs.datetime_utils import naive_utc_now
 from models.model import App, AppMode
-from models.workflow import Workflow, WorkflowType
+from models.workflow import Workflow, WorkflowDraftSnapshot, WorkflowType
 from services.errors.app import IsDraftWorkflowError, TriggerNodeLimitExceededError, WorkflowHashNotEqualError
 from services.errors.workflow_service import DraftWorkflowDeletionError, WorkflowInUseError
 from services.workflow_service import WorkflowService
@@ -452,6 +452,7 @@ class TestWorkflowService:
         mock_query = MagicMock()
         mock_db_session.session.query.return_value = mock_query
         mock_query.where.return_value.first.return_value = None
+        mock_db_session.session.execute.return_value.scalar_one_or_none.return_value = None
 
         with (
             patch.object(workflow_service, "validate_features_structure"),
@@ -468,8 +469,11 @@ class TestWorkflowService:
                 conversation_variables=[],
             )
 
-            # Verify workflow was added to session
-            mock_db_session.session.add.assert_called_once()
+            # Verify both the draft workflow and its initial snapshot were added.
+            assert mock_db_session.session.add.call_count == 2
+            add_calls = [call.args[0] for call in mock_db_session.session.add.call_args_list]
+            assert isinstance(add_calls[0], Workflow)
+            assert isinstance(add_calls[1], WorkflowDraftSnapshot)
             mock_db_session.session.commit.assert_called_once()
 
     def test_sync_draft_workflow_updates_existing_draft(self, workflow_service, mock_db_session):
@@ -491,6 +495,7 @@ class TestWorkflowService:
         mock_query = MagicMock()
         mock_db_session.session.query.return_value = mock_query
         mock_query.where.return_value.first.return_value = mock_workflow
+        mock_db_session.session.execute.return_value.scalar_one_or_none.return_value = None
 
         with (
             patch.object(workflow_service, "validate_features_structure"),
