@@ -224,6 +224,12 @@ const DEFAULT_ENABLED_TOOLS: WorkspaceToolSettings = {
   read_aloud: true,
 }
 
+const buildMockWorkspaceTestOutput = (agent: InternalAgent, input: string) => {
+  const plainInput = input.trim()
+  const opening = agent.opening_line || `你好，我是${agent.name}。`
+  return `${opening} 这是演示环境下的本地测试结果，我先记下你的问题“${plainInput}”，线上真实环境会按当前项目配置和模型设置来回答。`
+}
+
 const getToolSettings = (agent: Pick<InternalAgent, 'owner_role' | 'tool_settings'>): WorkspaceToolSettings =>
   clone({
     ...DEFAULT_ENABLED_TOOLS,
@@ -1643,8 +1649,7 @@ export const runStarshipWorkspaceTest = async (
     agent.tool_settings = clone(payload.draft.tool_settings)
     agent.knowledge_items = clone(payload.draft.knowledge_items)
   }
-  const promptTone = agent.pre_prompt.split('。')[0] || agent.name
-  const output = `${agent.name}：${promptTone}。你刚刚说的是“${payload.input}”。如果我是这个智能体，我会先回答你的问题，再补上一条和任务有关的小提醒。`
+  const output = buildMockWorkspaceTestOutput(agent, payload.input)
   const record: WorkspaceTestRecord = {
     id: makeId('test'),
     input: payload.input,
