@@ -184,7 +184,7 @@ const CreateTaskPage = () => {
       })
       await publishStarshipTaskMain(currentGroup.task_id)
       await reload()
-      flash('主版本已经发布，这个班级项目进入收尾阶段，孩子们现在可以 fork 自己的继续版。')
+      flash('主版本已经发布，这个班级项目已经结束，孩子们现在可以生成自己的继续作品。')
       router.replace(`/starship/coach/${groupId}`)
     }
     catch (error) {
@@ -384,7 +384,7 @@ const CreateTaskPage = () => {
                 <div>1. 先保存任务草稿。</div>
                 <div>2. 再发布给孩子，孩子们才会在个人中心看到并开始写。</div>
                 <div>3. 教练去课堂看板里实时看孩子们的创作和测试情况。</div>
-                <div>4. 最后由教练发布主版本，项目结束，孩子们再 fork 自己继续做。</div>
+                <div>4. 最后由教练发布主版本，项目结束后，孩子们再生成自己的继续作品。</div>
               </div>
 
               <div className="mt-5 space-y-3">
