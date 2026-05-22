@@ -1603,7 +1603,48 @@ export const saveStarshipWorkspace = async (appId: string, payload: {
   if (payload.knowledge_items)
     agent.knowledge_items = clone(payload.knowledge_items)
   agent.updated_at = Math.floor(Date.now() / 1000)
+  saveDb()
   return withDelay({ result: 'ok' })
+}
+
+export const uploadStarshipKnowledge = async (appId: string, file: File): Promise<{
+  id: string
+  name: string
+  size_label: string
+}> => {
+  if (isStarshipBridgeMode()) {
+    const formData = new FormData()
+    formData.append('file', file)
+    const result = await bridgeRequest<{
+      id: string
+      name: string
+      size_label: string
+    }>(
+      `/ag/starship/workspace/${encodeURIComponent(appId)}/upload_knowledge`,
+      {
+        method: 'POST',
+        body: formData,
+      },
+    )
+    await refreshBridgeDb()
+    return result || {
+      id: `${file.name}-${file.size}-${Date.now()}`,
+      name: file.name,
+      size_label: file.size >= 1024 * 1024
+        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+        : `${Math.max(1, Math.round(file.size / 1024))} KB`,
+    }
+  }
+
+  await ensureDbReady()
+  // Mock local behavior
+  return withDelay({
+    id: `${file.name}-${file.size}-${Date.now()}`,
+    name: file.name,
+    size_label: file.size >= 1024 * 1024
+      ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+      : `${Math.max(1, Math.round(file.size / 1024))} KB`,
+  })
 }
 
 export const runStarshipWorkspaceTest = async (

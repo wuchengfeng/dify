@@ -10,6 +10,7 @@ import {
   forkStarshipWorkspace,
   runStarshipWorkspaceTest,
   saveStarshipWorkspace,
+  uploadStarshipKnowledge,
 } from '@/service/starship'
 import useBrowserVoiceInput from './use-browser-voice-input'
 
@@ -262,21 +263,25 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleKnowledgeUpload = (event: ChangeEvent<HTMLInputElement>) => {
+  const [uploading, setUploading] = useState(false)
+
+  const handleKnowledgeUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || [])
     if (!files.length)
       return
 
-    const uploaded = files.map(file => ({
-      id: `${file.name}-${file.size}-${Date.now()}`,
-      name: file.name,
-      size_label: file.size >= 1024 * 1024
-        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-        : `${Math.max(1, Math.round(file.size / 1024))} KB`,
-    }))
-
-    setKnowledgeItems(prev => [...uploaded, ...prev])
-    event.target.value = ''
+    setUploading(true)
+    try {
+      // For now, we only handle the first file, but you could map over them.
+      const file = files[0]
+      const uploadedItem = await uploadStarshipKnowledge(appId, file)
+      setKnowledgeItems(prev => [uploadedItem, ...prev])
+    } catch (err) {
+      flash(err instanceof Error ? err.message : '上传失败')
+    } finally {
+      setUploading(false)
+      event.target.value = ''
+    }
   }
 
   const handleRemoveKnowledge = (itemId: string) => {
@@ -697,9 +702,11 @@ const StarshipWorkspacePage = ({ appId }: StarshipWorkspaceProps) => {
             title={t('workspace.knowledgeTitle')}
             description={t('workspace.knowledgeDescription')}
             action={(
-              <label className={`rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 ${readOnlyStudentHistory ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-white/5'}`}>
-                {t('workspace.uploadKnowledge')}
-                <input type="file" multiple className="hidden" onChange={handleKnowledgeUpload} disabled={readOnlyStudentHistory} />
+              <label className={`group flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 transition ${readOnlyStudentHistory || uploading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-white/5'}`}>
+                <span className="text-sm font-medium text-sky-200 group-hover:text-sky-100">
+                  {uploading ? t('workspace.uploading') : t('workspace.uploadKnowledge')}
+                </span>
+                <input type="file" multiple className="hidden" onChange={handleKnowledgeUpload} disabled={readOnlyStudentHistory || uploading} />
               </label>
             )}
           >

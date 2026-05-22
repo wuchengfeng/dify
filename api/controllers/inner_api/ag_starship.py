@@ -243,6 +243,10 @@ class AgStarshipAppUploadKnowledge(Resource):
             knowledge_config=knowledge_config,
             account=account
         )
-        
-        return {"status": "success", "dataset_id": dataset.id, "file_id": upload_file.id}
+        return {
+            "data": {
+                "document_id": upload_file.id,
+                "name": upload_file.name,
+            }
+        }
 
